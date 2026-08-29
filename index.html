@@ -60,11 +60,15 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-html,body{height:100%;overflow-x:clip}
+html,body{overflow-x:clip}
 body{
-  background:
-    radial-gradient(80% 50% at 20% 0%, rgba(40,70,140,.30) 0%, transparent 55%) fixed,
-    linear-gradient(#0a1633 0%, #060e26 60%, #030815 100%) var(--bg);
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(80% 50% at 20% 0%, rgba(40,70,140,.30) 0%, transparent 55%),
+    linear-gradient(#0a1633 0%, #060e26 60%, #030815 100%);
+  background-attachment:fixed, fixed;
+  background-repeat:no-repeat, no-repeat;
+  background-size:100% 100%, 100% 100%;
   color:var(--ink); font-family:var(--syne); font-size:15px; line-height:1.5;
   -webkit-font-smoothing:antialiased;
   display:flex; flex-direction:column; min-height:100vh;
@@ -99,10 +103,15 @@ h1{margin:0;font-family:var(--syne);font-size:clamp(28px,3.4vw,50px);font-weight
 .tagline{font-family:var(--syne);font-size:clamp(14px,1.3vw,19px);font-weight:600;
   color:var(--ink-2);margin-top:8px}
 .topright{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex:0 0 auto}
+.dfdv{display:flex;align-items:center;gap:13px;text-decoration:none}
+.dfdv:hover{text-decoration:none}
+.dfdv:hover .dfdv-name{color:var(--orange)}
 .builtby{font-family:var(--syne);font-size:9.5px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--ink-3)}
-.builtby a{color:var(--ink-2)}
-.pill{display:inline-flex;align-items:center;gap:8px;background:var(--panel);
+  text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.dfdv-mark{height:23px;width:auto;flex:0 0 auto}
+.dfdv-name{font-family:var(--syne);font-size:15.5px;font-weight:700;color:var(--ink);
+  letter-spacing:-.01em;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:10px;background:var(--panel);
   border:1px solid var(--line);border-radius:20px;padding:7px 14px;
   font-family:var(--syne);font-size:11.5px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--ink-2)}
@@ -205,7 +214,8 @@ button.dlbtn[disabled]{opacity:.5;cursor:default}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:10px 14px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-2)}
 th{font-family:var(--syne);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
-   color:var(--ink-3);font-weight:700;background:rgba(13,26,52,.75);position:sticky;top:0}
+   color:var(--ink-3);font-weight:700;position:sticky;top:0;z-index:2;
+   background:#0c1932;box-shadow:inset 0 -1px 0 var(--line)}
 th:first-child,td:first-child{text-align:left}
 tbody tr:last-child td{border-bottom:0}
 tbody tr:hover td{background:rgba(143,165,212,.05)}
@@ -288,7 +298,15 @@ footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
         <div class="tagline" id="tagline">Loading…</div>
       </div>
       <div class="topright">
-        <div class="builtby">Built by <a href="https://defidevcorp.com">DeFi Development Corp.</a></div>
+        <a class="dfdv" href="https://defidevcorp.com" target="_blank" rel="noopener noreferrer">
+          <span class="builtby">Built by</span>
+          <svg class="dfdv-mark" viewBox="0 0 548 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs><linearGradient id="dfdvMark2" x1="121.6" y1="320.9" x2="426.11" y2="16.4" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#f18f34"/><stop offset="1" stop-color="#ff4431"/></linearGradient></defs>
+            <path fill="url(#dfdvMark2)" d="M410.25,110.94V.54H137.47v110.4C86.5,129.98,39.74,159.82,0,199.3h44.22c28.31-23.66,59.71-42.58,93.25-56.35v56.21h29.82v-66.91c34.06-10.55,69.89-16.01,106.57-16.01s72.51,5.47,106.57,16.02v66.9h29.82v-56.19c33.52,13.77,64.93,32.67,93.23,56.33h44.22c-39.74-39.48-86.49-69.32-137.45-88.36ZM380.43,101.14c-34.22-9.71-70.01-14.71-106.57-14.71s-72.35,5-106.57,14.71V30.34h213.14v70.8Z"/>
+          </svg>
+          <span class="dfdv-name">DeFi Development Corp.</span>
+        </a>
         <div class="pill" id="pill"><span class="dot"></span><span id="pilltxt">Loading</span></div>
       </div>
     </div>
@@ -525,7 +543,7 @@ function lineChart(opts) {
     const H = opts.aspect
       ? Math.max(opts.minHeight || 320, Math.round(W / opts.aspect))
       : (opts.height || 400);
-    const M = { t: 14, r: 62, b: 26, l: 54 };
+    const M = { t: 14, r: opts.fmtAxis2 ? 66 : 62, b: 26, l: 54 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
 
     const active = opts.series.filter(s => !state.off.has(s.key));
@@ -559,8 +577,13 @@ function lineChart(opts) {
       ...b, lo: reb({ values: b.loValues }), hi: reb({ values: b.hiValues }),
     }));
 
+    // Series may opt on to a second, right-hand scale. Two scales on one plot invent
+    // a relationship the data does not have, so this is reserved for a context line
+    // (DFDV's price behind a metric), never for two series meant to be compared.
+    const a1 = drawn.filter(x => x.axis !== 'y2');
+    const a2 = drawn.filter(x => x.axis === 'y2');
     let vals = [];
-    for (const s of drawn) vals = vals.concat(s.pts.filter(v => v !== null));
+    for (const x of a1) vals = vals.concat(x.pts.filter(v => v !== null));
     for (const b of bands) vals = vals.concat(b.lo.filter(v => v !== null), b.hi.filter(v => v !== null));
     if (!vals.length) return;
     let lo = Math.min(...vals), hi = Math.max(...vals);
@@ -573,6 +596,15 @@ function lineChart(opts) {
       hi += p;
     }
 
+    let lo2 = 0, hi2 = 1;
+    if (a2.length) {
+      const v2 = a2.flatMap(x => x.pts.filter(v => v !== null));
+      lo2 = Math.min(...v2); hi2 = Math.max(...v2);
+      const p2 = (hi2 - lo2) * 0.08 || 1;
+      lo2 = Math.max(0, lo2 - p2); hi2 += p2;
+    }
+    const Y2 = v => M.t + ph - (v - lo2) / (hi2 - lo2 || 1) * ph;
+    const scaleFor = x => (x.axis === 'y2' ? Y2 : Y);
     const X = i => M.l + (N === 1 ? pw / 2 : i / (N - 1) * pw);
     const Y = v => {
       if (state.log) {
@@ -606,6 +638,18 @@ function lineChart(opts) {
       // steps read correctly and label the axis properly.
       tickStep = niceStep((hi - lo) / want);
       for (let v = Math.ceil(lo / tickStep) * tickStep; v <= hi; v += tickStep) ticks.push(v);
+    }
+    if (a2.length) {
+      const want2 = Math.max(3, Math.min(5, Math.round(ph / 62)));
+      const step2 = niceStep((hi2 - lo2) / want2);
+      const col = a2[0].color;
+      for (let v = Math.ceil(lo2 / step2) * step2; v <= hi2; v += step2) {
+        const t2 = svgEl('text', {
+          x: M.l + pw + 9, y: Y2(v) + 4, 'text-anchor': 'start', class: 'axis-t', fill: col,
+        });
+        t2.textContent = opts.fmtAxis2 ? opts.fmtAxis2(v, step2) : nf(v, 0);
+        svg.append(t2);
+      }
     }
     let lastTickY = Infinity;
     for (const t of ticks) {
@@ -658,10 +702,11 @@ function lineChart(opts) {
 
     const endLabels = [];
     for (const s of drawn) {
+      const YS = scaleFor(s);
       let p = '', open = false;
       s.pts.forEach((v, i) => {
         if (v === null) { open = false; return; }
-        p += `${open ? 'L' : 'M'}${X(i)},${Y(v)}`; open = true;
+        p += `${open ? 'L' : 'M'}${X(i)},${YS(v)}`; open = true;
       });
       svg.append(svgEl('path', {
         d: p, fill: 'none', stroke: s.color, 'stroke-width': s.width || 2,
@@ -670,7 +715,7 @@ function lineChart(opts) {
       const li = s.pts.map((v, i) => v === null ? -1 : i).filter(i => i >= 0).pop();
       if (li !== undefined && li >= 0) {
         endLabels.push({
-          x: X(li) + 7, y: Y(s.pts[li]), color: s.color,
+          x: X(li) + 7, y: YS(s.pts[li]), color: s.color, onY2: s.axis === 'y2',
           text: opts.fmtEnd ? opts.fmtEnd(s.pts[li]) : pct(s.pts[li] - 100, 0),
         });
       }
@@ -688,6 +733,7 @@ function lineChart(opts) {
       const t = svgEl('text', {
         x: l.x, y: Math.max(M.t + 4, l.y) + 4, fill: l.color,
         'font-size': 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
+        opacity: l.onY2 ? 0 : 1,   // the right-hand axis already labels that scale
       });
       t.textContent = l.text;
       svg.append(t);
@@ -715,9 +761,10 @@ function lineChart(opts) {
       drawn.forEach((s, k) => {
         const v = s.pts[i];
         if (v === null || v === undefined) { dots[k].setAttribute('opacity', 0); return; }
-        dots[k].setAttribute('cx', X(i)); dots[k].setAttribute('cy', Y(v)); dots[k].setAttribute('opacity', 1);
+        dots[k].setAttribute('cx', X(i)); dots[k].setAttribute('cy', scaleFor(s)(v)); dots[k].setAttribute('opacity', 1);
+        const f = s.axis === 'y2' ? (opts.fmtTip2 || opts.fmtTip) : opts.fmtTip;
         rows.push(`<div class="r"><span class="nm"><i class="sw" style="background:${s.color}"></i>${s.label}</span>
-          <span class="vv">${opts.fmtTip ? opts.fmtTip(v) : pct(v - 100, 1)}</span></div>`);
+          <span class="vv">${f ? f(v) : pct(v - 100, 1)}</span></div>`);
       });
       tip.innerHTML = `<div class="d">${dateLabel(dates[i])}</div>` + rows.join('');
       tip.style.opacity = 1;
@@ -883,7 +930,13 @@ function render(D) {
   renderMarquee(D.posts);
 
   $('#tagline').textContent = "How DeFi Development Corp.'s (Nasdaq: DFDV) Solana treasury strategy is performing";
-  $('#pilltxt').textContent = 'Updated ' + dateLabel((D.as_of.dfdv_api || '').slice(0, 10));
+  // Their pill reads LIVE because that page polls; this one is a scheduled snapshot,
+  // so it names the refresh time rather than implying a live feed.
+  const stamp = D.as_of.dfdv_api || D.generated_at;
+  $('#pilltxt').textContent = 'Updated · ' + (stamp
+    ? new Date(stamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
+    : dateLabel((D.as_of.dfdv_api || '').slice(0, 10)));
+  $('#pill').title = 'Data last refreshed ' + new Date(stamp).toUTCString();
 
   $('#hero').append(
     el('div', { class: 'hcard accent' }, [
@@ -917,6 +970,7 @@ function render(D) {
     { key: 'etf', label: 'SOL ETF (synthetic)', color: 'var(--s-etf)', values: S.etf },
     { key: 'bsol', label: 'BSOL (actual)', color: 'var(--s-etf)', dash: '2 4', width: 1.75, values: S.bsol, rebaseWith: 'etf' },
     { key: 'sol', label: 'SOL spot', color: 'var(--s-sol)', values: S.sol },
+    { key: 'slon', label: 'SLON 2× levered ETF', color: 'var(--s-sol)', dash: '7 3', width: 1.75, values: S.slon, rebaseWith: 'sol' },
     { key: 'perp', label: 'SOL perp 1× (net funding)', color: 'var(--s-perp)', values: S.perp },
   ];
   const c1 = lineChart({
@@ -931,9 +985,10 @@ function render(D) {
       tileGrid([
         tile('1 Month', pct(R['1m']), null, cls(R['1m'])),
         tile('3 Month', pct(R['3m']), null, cls(R['3m'])),
-        tile('6 Month', pct(R['6m']), null, cls(R['6m'])),
         tile('Year to Date', pct(R.ytd), null, cls(R.ytd)),
         tile('1 Year', pct(R['1y']), null, cls(R['1y'])),
+        tile('Beta to SOL', D.beta_stats.d90 === null ? '—' : nf(D.beta_stats.d90, 2) + '×',
+          D.beta_stats.all === null ? 'realised, 90d' : `90d realised · ${nf(D.beta_stats.all, 2)}× since Apr ’25`),
         tile('Staking Yield', nf(h.staking_apy_pct, 2) + '%', h.staking_apy_source),
         tile('Total Debt', compact(h.total_debt, '$'), nf(h.debt_to_mktcap, 2) + '× market cap'),
         tile('Volume', compact(h.volume), '30d avg ' + compact(h.avg_volume_30d)),
@@ -942,7 +997,7 @@ function render(D) {
         tile('Days to Cover', nf(sh.days_to_cover, 1), 'at settlement ADV'),
         tile('Options OI', compact(h.options_oi_musd * 1e6, '$'), 'put/call ' + nf(h.put_call_ratio, 2)),
         tile('Implied Vol', nf(h.implied_volatility * 100, 0) + '%', 'realised ' + nf(h.historic_volatility * 100, 0) + '%'),
-        tile('52-Week Range', h.week52_high_low || '—', `inst. ${nf(h.institutional_pct, 1)}% · insiders ${nf(h.insider_pct, 1)}%`),
+        tile('52-Week Range', h.week52_high_low || '—', 'high / low'),
       ]),
       el('div', { class: 'note', style: 'margin-bottom:0' },
         `Returns are on the DFDV share price. Short interest is FINRA's semi-monthly settlement, ` +
@@ -974,152 +1029,154 @@ function render(D) {
     ]),
   ]));
 
-  /* 5. decomposition + valuation band ------------------------------------- */
-  // Slot order below is the validated categorical order: DFDV, SPS, SOL, mNAV.
-  const DECOMP = [
-    { key: 'dfdv', label: 'DFDV share price', color: 'var(--s-dfdv)', width: 2.5, values: S.dfdv },
-    { key: 'sps', label: 'SOL per share', color: 'var(--s-etf)', values: S.sps },
-    { key: 'sol', label: 'SOL price', color: 'var(--s-sol)', values: S.sol },
-    { key: 'mnav', label: 'mNAV (the multiple)', color: 'var(--s-perp)', values: S.mnav },
+  /* 5. leverage band ------------------------------------------------------ */
+  const B = D.band_betas;
+  const BAND_SERIES = [
+    { key: 'dfdv', label: 'DFDV actual', color: 'var(--s-dfdv)', width: 2.5, values: S.dfdv },
+    { key: 'mid', label: `Median leverage · ${nf(B.mid, 2)}× SOL`, color: 'var(--band-edge)',
+      width: 1.5, dash: '6 4', values: S.band_mid },
   ];
   const c2 = lineChart({
-    dates: S.dates, height: 380, log: true, series: DECOMP,
-    aria: 'DFDV share price decomposed into SOL price, SOL per share, and mNAV',
+    dates: S.dates, log: true, aspect: 2.4, minHeight: 340, series: BAND_SERIES,
+    bands: [{ loValues: S.band_lo, hiValues: S.band_hi }],
+    aria: 'DFDV actual return against the range implied by its historical leverage to SOL',
     fmtAxis: (v, step) => pct(v - 100, step && step < 5 ? 1 : 0), fmtTip: v => pct(v - 100, 1),
   });
-
-  const c2b = lineChart({
-    dates: S.dates, height: 340, log: true, rebase: false,
-    series: [
-      { key: 'price', label: 'DFDV share price', color: 'var(--s-dfdv)', width: 2.5, values: S.price },
-      { key: 'navps', label: 'NAV per share (SPS × SOL)', color: 'var(--s-etf)', values: S.navps },
-    ],
-    aria: 'DFDV share price against NAV per share and the range implied by its recent mNAV',
-    bands: [{ loValues: S.band_lo, hiValues: S.band_hi }],
-    fmtAxis: (v, step) => '$' + nf(v, (step && step < 1) || v < 10 ? 2 : 0), fmtTip: v => usd(v),
-    fmtEnd: v => usd(v),
-  });
-
-  const dc = D.decomposition;
   const posPct = Math.max(0, Math.min(1, D.band_position ?? 0.5)) * 100;
   const inBand = D.band_position >= 0 && D.band_position <= 1;
 
   main.append(el('section', {}, [
-    sectionHead('Actual vs. Expected'),
+    sectionHead('Actual vs. Expected, Given Leverage'),
     el('div', { class: 'note' },
-      `DFDV's share price satisfies an exact identity: price = mNAV × SOL per share × SOL price. So the return ` +
-      `factors into exactly three drivers with nothing modelled and no leverage assumption — the SOL market, the ` +
-      `treasury DFDV built, and the multiple the market pays for it. Since the first purchase those have been ` +
-      `${nf(dc.sol, 2)}× × ${nf(dc.sps, 2)}× × ${nf(dc.mnav, 3)}× = ${nf(dc.product, 3)}×, against an actual ` +
-      `${nf(dc.dfdv, 3)}×. The treasury did its job; the multiple is where the return went.`),
+      `The band is what DFDV's own leverage implies. Each edge compounds a constant multiple of the daily SOL ` +
+      `move, at the 25th and 75th percentile of the levered SOL exposure DFDV has actually run ` +
+      `(${nf(B.lo, 2)}× and ${nf(B.hi, 2)}×); the dashed line is its median, ${nf(B.mid, 2)}×. Inside the band means ` +
+      `the stock has behaved like the levered SOL exposure it carries. Note the edges cross: a higher multiple ` +
+      `ends lower once SOL falls, which is leverage decay, and it is why the band is wide even though SOL is ` +
+      `close to flat over the period.`),
     el('div', { class: 'panel' }, [
       el('div', { class: 'panel-hd' }, [
         el('div', {}, [
-          el('h3', {}, 'Where the return came from'),
-          el('div', { class: 'sub' }, 'The three lines below DFDV multiply to it, exactly, in any window'),
+          el('h3', {}, 'DFDV against its leverage-implied range'),
+          el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
         ]),
         el('div', { class: 'ctrls' }, [
           rangeControls(c2, S.dates),
           segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c2.state.log = v === 'log'; c2.draw(); }),
         ]),
       ]),
-      legendFor(c2, DECOMP),
-      c2.host,
-      dlRow(c2, 'Where DFDV’s return came from', 'decomposition', SRC_LINE),
-      el('div', { class: 'gauge' }, [
-        el('div', { class: 'ends', style: 'margin-top:0' }, [
-          el('span', {}, `SOL price ${nf(dc.sol, 2)}×`),
-          el('span', {}, `× SOL per share ${nf(dc.sps, 2)}×`),
-          el('span', {}, `× mNAV ${nf(dc.mnav, 3)}×`),
-          el('span', { style: 'color:var(--orange)' }, `= DFDV ${nf(dc.dfdv, 3)}×`),
-        ]),
-      ]),
-    ]),
-    el('div', { class: 'panel', style: 'margin-top:16px' }, [
-      el('div', { class: 'panel-hd' }, [
-        el('div', {}, [
-          el('h3', {}, 'Price against NAV per share'),
-          el('div', { class: 'sub' }, 'Dollars per share — the band is fixed, so changing the range only pans it'),
-        ]),
-        el('div', { class: 'ctrls' }, [
-          rangeControls(c2b, S.dates),
-          segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c2b.state.log = v === 'log'; c2b.draw(); }),
-        ]),
-      ]),
       el('div', { class: 'legend' }, [
         el('div', { class: 'it' }, [
-          (() => { const s = svgEl('svg', { width: 22, height: 10 }); s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--s-dfdv)', 'stroke-width': 2.5, 'stroke-linecap': 'round' })); return s; })(),
-          el('span', {}, 'DFDV share price'),
+          (() => { const g = svgEl('svg', { width: 22, height: 10 }); g.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--s-dfdv)', 'stroke-width': 2.5, 'stroke-linecap': 'round' })); return g; })(),
+          el('span', {}, 'DFDV actual'),
         ]),
         el('div', { class: 'it' }, [
-          (() => { const s = svgEl('svg', { width: 22, height: 10 }); s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--s-etf)', 'stroke-width': 2, 'stroke-linecap': 'round' })); return s; })(),
-          el('span', {}, 'NAV per share'),
+          (() => { const g = svgEl('svg', { width: 22, height: 10 }); g.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--band-edge)', 'stroke-width': 1.5, 'stroke-dasharray': '6 4' })); return g; })(),
+          el('span', {}, `Median leverage · ${nf(B.mid, 2)}× SOL`),
         ]),
         el('div', { class: 'it' }, [
           (() => {
-            const s = svgEl('svg', { width: 22, height: 10 });
-            s.append(svgEl('rect', { x: 0, y: 1, width: 22, height: 8, fill: 'var(--band)' }));
-            s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--band-edge)', 'stroke-width': 1.25, 'stroke-dasharray': '5 4' }));
-            return s;
+            const g = svgEl('svg', { width: 22, height: 10 });
+            g.append(svgEl('rect', { x: 0, y: 1, width: 22, height: 8, fill: 'var(--band)' }));
+            return g;
           })(),
-          el('span', {}, 'Where its recent mNAV range would put it'),
+          el('span', {}, `${nf(B.lo, 2)}×–${nf(B.hi, 2)}× leverage range`),
         ]),
       ]),
-      c2b.host,
-      dlRow(c2b, 'DFDV price against NAV per share', 'price-vs-nav', SRC_LINE),
+      c2.host,
+      dlRow(c2, 'DFDV against its leverage-implied range', 'leverage-band', SRC_LINE),
       el('div', { class: 'gauge' }, [
         el('div', { class: 'bar' }, [el('div', { class: 'mk', style: `left:calc(${posPct}% - 1.5px)` })]),
         el('div', { class: 'ends' }, [
-          el('span', {}, `Cheap edge · ${usd(S.band_lo[S.band_lo.length - 1])} (mNAV p25)`),
+          el('span', {}, `Low edge · ${pct(D.compare.band_lo.treasury, 0)}`),
           el('span', { style: 'color:var(--orange)' },
             inBand ? `DFDV at ${nf(D.band_position * 100, 0)}% across the band`
               : (D.band_position > 1 ? 'DFDV above the band' : 'DFDV below the band')),
-          el('span', {}, `Rich edge · ${usd(S.band_hi[S.band_hi.length - 1])} (mNAV p75)`),
+          el('span', {}, `High edge · ${pct(D.compare.band_hi.treasury, 0)}`),
         ]),
       ]),
+      el('div', { class: 'note', style: 'margin:14px 0 0' },
+        `This is a leverage benchmark, not a fair value. It credits leverage only — there is no SOL-per-share ` +
+        `term, because the exposure multiple is measured on SOL NAV and already rises when debt or issuance buys ` +
+        `more SOL, so adding one would count the same SOL twice. DFDV above the band can therefore reflect ` +
+        `treasury growth rather than richness. Worth reading beside the realised figure: DFDV's actual beta to ` +
+        `SOL has been ${D.beta_stats.d90 === null ? 'n/a' : nf(D.beta_stats.d90, 2) + '×'} over 90 days and ` +
+        `${D.beta_stats.all === null ? 'n/a' : nf(D.beta_stats.all, 2) + '×'} since the first purchase — well ` +
+        `under the ${nf(h.leverage, 2)}× of SOL its balance sheet carries.`),
     ]),
   ]));
 
   /* 6. leverage & short interest history ---------------------------------- */
   const c3 = lineChart({
     dates: S.dates, height: 240, log: false, baseline: 1, rebase: false,
-    series: [{ key: 'lev', label: 'Levered SOL exposure', color: 'var(--s-dfdv)', width: 2, values: S.leverage }],
+    series: [
+      { key: 'lev', label: 'Levered SOL exposure', color: 'var(--s-dfdv)', width: 2, values: S.leverage },
+      { key: 'px', label: 'DFDV price', color: 'var(--ink-3)', width: 1.25, dash: '4 3', values: S.price, axis: 'y2' },
+    ],
     aria: 'Levered SOL exposure over time',
     fmtAxis: v => nf(v, 1) + '×', fmtTip: v => nf(v, 2) + '×', fmtEnd: v => nf(v, 2) + '×',
+    fmtAxis2: v => '$' + nf(v, v > 0 && v < 10 ? 1 : 0), fmtTip2: v => usd(v),
   });
   // Percent-of-float and days-to-cover are different units, so they get their own
   // axes as small multiples rather than sharing one scale.
   const shortDates = D.short_history.map(r => r.date);
+  // Those charts are indexed by FINRA settlement date, not trading day, so sample the
+  // close at (or last before) each settlement rather than reusing the daily series.
+  const priceAtSettlements = shortDates.map(d => {
+    let px = null;
+    for (let i = 0; i < S.dates.length && S.dates[i] <= d; i++) px = S.price[i];
+    return px;
+  });
   const c4 = lineChart({
     dates: shortDates, height: 240, log: false, rebase: false,
-    series: [{ key: 'pf', label: 'Short % of float', color: 'var(--s-perp)', width: 2, values: D.short_history.map(r => r.pct_float) }],
+    series: [
+      { key: 'pf', label: 'Short % of float', color: 'var(--s-perp)', width: 2, values: D.short_history.map(r => r.pct_float) },
+      { key: 'px', label: 'DFDV price', color: 'var(--ink-3)', width: 1.25, dash: '4 3', values: priceAtSettlements, axis: 'y2' },
+    ],
     aria: 'Short interest as a percent of float, by FINRA settlement date',
     fmtAxis: v => nf(v, 0) + '%', fmtTip: v => nf(v, 1) + '%', fmtEnd: v => nf(v, 1) + '%',
+    fmtAxis2: v => '$' + nf(v, v > 0 && v < 10 ? 1 : 0), fmtTip2: v => usd(v),
   });
   const c5 = lineChart({
     dates: shortDates, height: 240, log: false, rebase: false,
-    series: [{ key: 'd2c', label: 'Days to cover', color: 'var(--s-sol)', width: 2, values: D.short_history.map(r => r.days_to_cover) }],
+    series: [
+      { key: 'd2c', label: 'Days to cover', color: 'var(--s-sol)', width: 2, values: D.short_history.map(r => r.days_to_cover) },
+      { key: 'px', label: 'DFDV price', color: 'var(--ink-3)', width: 1.25, dash: '4 3', values: priceAtSettlements, axis: 'y2' },
+    ],
     aria: 'Days to cover, by FINRA settlement date',
     fmtAxis: v => nf(v, 0), fmtTip: v => nf(v, 1) + ' days', fmtEnd: v => nf(v, 1),
+    fmtAxis2: v => '$' + nf(v, v > 0 && v < 10 ? 1 : 0), fmtTip2: v => usd(v),
   });
 
   main.append(el('section', {}, [
     sectionHead('Leverage & Short Interest Over Time'),
     el('div', { class: 'note' },
-      `Leverage is not a policy dial DFDV sets — it moves with mNAV. When the stock falls relative to the SOL behind it, ` +
+      `Leverage is not a policy dial DFDV sets — it moves with the share price. When the stock falls relative to the SOL behind it, ` +
       `each share carries more SOL exposure, not less. Short interest is plotted at FINRA settlement dates; the % of ` +
       `float series holds the insider-held fraction constant and lets float track the share count.`),
     el('div', { class: 'trio' }, [
       el('div', { class: 'panel' }, [
         el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Levered SOL Exposure'), el('div', { class: 'sub' }, 'SOL NAV ÷ market cap')])]),
+        legendFor(c3, [
+          { key: 'lev', label: 'SOL exposure', color: 'var(--s-dfdv)', width: 2 },
+          { key: 'px', label: 'DFDV price (right)', color: 'var(--ink-3)', width: 1.25, dash: '4 3' },
+        ]),
         c3.host, dlRow(c3, 'DFDV levered SOL exposure', 'leverage', SRC_LINE),
       ]),
       el('div', { class: 'panel' }, [
         el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Short Interest'), el('div', { class: 'sub' }, '% of float, at settlement')])]),
+        legendFor(c4, [
+          { key: 'pf', label: '% of float', color: 'var(--s-perp)', width: 2 },
+          { key: 'px', label: 'DFDV price (right)', color: 'var(--ink-3)', width: 1.25, dash: '4 3' },
+        ]),
         c4.host, dlRow(c4, 'DFDV short interest, % of float', 'short-interest', SRC_LINE),
       ]),
       el('div', { class: 'panel' }, [
         el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Days to Cover'), el('div', { class: 'sub' }, 'short interest ÷ average daily volume')])]),
+        legendFor(c5, [
+          { key: 'd2c', label: 'Days to cover', color: 'var(--s-sol)', width: 2 },
+          { key: 'px', label: 'DFDV price (right)', color: 'var(--ink-3)', width: 1.25, dash: '4 3' },
+        ]),
         c5.host, dlRow(c5, 'DFDV days to cover', 'days-to-cover', SRC_LINE),
       ]),
     ]),
@@ -1131,6 +1188,7 @@ function render(D) {
     ['etf', 'SOL ETF (synthetic)', 'var(--s-etf)'],
     ['bsol', 'BSOL (actual)', 'var(--s-etf)'],
     ['sol', 'SOL spot', 'var(--s-sol)'],
+    ['slon', 'SLON 2× levered ETF', 'var(--s-sol)'],
     ['perp', 'SOL perp 1×', 'var(--s-perp)'],
   ];
   const cw = [['1m', '1M'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD'], ['1y', '1Y'], ['treasury', 'Since Apr ’25']];
@@ -1138,7 +1196,9 @@ function render(D) {
     sectionHead('Returns by Vehicle'),
     el('div', { class: 'note' },
       `The same windows as the chart, as numbers. BSOL has no "since Apr '25" figure because it did not exist then; ` +
-      `it returned ${pct(D.compare.bsol?.since_launch, 1)} from its ${dateLabel(M.bsol_inception)} launch.`),
+      `it returned ${pct(D.compare.bsol?.since_launch, 1)} from its ${dateLabel(M.bsol_inception)} launch. SLON, ` +
+      `the 2× levered ETF, returned ${pct(D.compare.slon?.since_launch, 1)} from its ${dateLabel(M.slon_inception)} ` +
+      `launch — the cost of resetting leverage daily through a volatile market.`),
     el('div', { class: 'tblwrap' }, el('table', {}, [
       el('thead', {}, el('tr', {}, [el('th', {}, 'Vehicle')].concat(cw.map(([, l]) => el('th', {}, l))))),
       el('tbody', {}, CROWS.map(([k, label, color]) => {
@@ -1189,7 +1249,7 @@ function render(D) {
 <ul>
   <li><b>DFDV treasury, share count, debt, options, dfdvSOL</b> — DFDV's own public metrics API at
       <code>defidevcorp.com/api/dashboard/*</code>, the same feed behind dfdv.com.</li>
-  <li><b>DFDV and BSOL prices, volume, short interest, 13F holders</b> — Nasdaq.</li>
+  <li><b>DFDV, BSOL and SLON prices, volume, short interest, 13F holders</b> — Nasdaq.</li>
   <li><b>SOL perpetual funding</b> — realised hourly funding on Hyperliquid.</li>
   <li><b>Public float and insider ownership</b> — stockanalysis.com.</li>
 </ul>
@@ -1201,36 +1261,40 @@ adopted the policy. DFDV's own dashboard uses the same base, so the two agree.</
 
 <h4>Levered SOL exposure</h4>
 <p><code>SOL NAV ÷ market cap</code> — the dollars of SOL working behind each dollar of DFDV equity, and the
-reciprocal of mNAV. It is currently <b>${nf(h.leverage, 2)}×</b>. Note this differs from the
+the inverse of what the market pays per dollar of that SOL. It is currently <b>${nf(h.leverage, 2)}×</b>. Note this differs from the
 <code>total debt ÷ market cap</code> definition in <i>The SOL Boost</i>, which is
 <b>${nf(h.debt_to_mktcap, 2)}×</b>; the first is exposure, the second is borrowing.</p>
 
-<h4>The return decomposition</h4>
-<p>Because NAV per share is <code>SPS × SOL price</code> and mNAV is <code>price ÷ NAV per share</code>, the
-share price satisfies an exact identity:</p>
-<p><code>price = mNAV × SOL per share × SOL price</code></p>
-<p>So the return over <i>any</i> window factors into three multiplicative drivers with nothing estimated. Since
-${dateLabel(M.treasury_start)} they are <b>${nf(dc.sol, 3)}× × ${nf(dc.sps, 3)}× × ${nf(dc.mnav, 4)}×
-= ${nf(dc.product, 4)}×</b>, against an actual <b>${nf(dc.dfdv, 4)}×</b> — the ${nf(dc.residual_pct, 3)}%
-difference is rounding. This replaces an earlier construction on this page that chained
-<code>leverage × SOL return + SPS growth</code>. That was wrong: levered SOL exposure is
-<code>SOL NAV ÷ market cap</code>, which already rises when debt buys more SOL, so adding the SPS-growth term
-counted the same debt-funded SOL twice. The identity above needs no leverage assumption at all.</p>
+<h4>The leverage band</h4>
+<p>Each edge compounds a constant multiple of the daily SOL return, at the 25th and 75th percentile of the
+levered SOL exposure DFDV has actually run since ${dateLabel(M.treasury_start)} — <b>${nf(B.lo, 2)}×</b> and
+<b>${nf(B.hi, 2)}×</b>. The dashed centre line uses the median, <b>${nf(B.mid, 2)}×</b>. DFDV currently sits
+<b>${nf((D.band_position ?? 0) * 100, 0)}%</b> of the way across it.</p>
+<p>The edges cross, which is not a drawing error: a higher multiple ends <i>lower</i> once SOL falls and
+recovers, because compounding a levered exposure through volatility decays it. That is the same effect visible
+in SLON on the performance chart, and it is why the band is wide even though SOL is close to flat over the
+period.</p>
+<p>There is deliberately no SOL-per-share term. Adding one would double-count: the exposure multiple is
+<code>SOL NAV ÷ market cap</code>, which already rises when debt or issuance buys more SOL, so crediting SPS
+growth on top counts the same SOL twice. An earlier version of this page made exactly that mistake. The cost of
+leaving it out is that this is a <i>leverage benchmark, not a fair value</i> — DFDV sitting above the band can
+reflect treasury growth rather than richness.</p>
 
-<h4>The valuation band</h4>
-<p><code>NAV per share × the 25th and 75th percentile of mNAV over the trailing 180 trading days</code> — where
-DFDV would trade if the market paid the multiple it has lately been paying for the treasury DFDV now holds. It
-is drawn in dollars per share rather than as an indexed return, so changing the chart's time range pans and
-zooms it but never redraws it. DFDV currently sits <b>${nf((D.band_position ?? 0) * 100, 0)}%</b> of the way
-across the band.</p>
+<h4>Beta to SOL</h4>
+<p>The OLS slope of DFDV's daily returns regressed on SOL's, over the trailing 90 trading days and over the
+whole period. It is the realised counterpart to the balance-sheet exposure figure, and the two disagree
+sharply: <b>${D.beta_stats.d90 === null ? 'n/a' : nf(D.beta_stats.d90, 2) + '×'}</b> over 90 days and
+<b>${D.beta_stats.all === null ? 'n/a' : nf(D.beta_stats.all, 2) + '×'}</b> since the first purchase, against
+<b>${nf(h.leverage, 2)}×</b> of SOL carried per dollar of market value. Balance-sheet leverage is what DFDV
+holds; beta is what the market has actually paid it.</p>
 
 <h4>A caution on "leverage"</h4>
 <p>Two different numbers travel under that word here, and neither is a price multiplier on its own.
 <code>SOL NAV ÷ market cap</code> (<b>${nf(h.leverage, 2)}×</b>) is SOL exposure per dollar of market value.
 <code>SOL NAV ÷ (SOL NAV − net debt)</code> (<b>${nf(h.sol_nav / (h.sol_nav - h.net_debt), 2)}×</b>) is the
-true gearing on book equity. Which one moves the share price depends on whether the market re-rates: hold mNAV
-fixed and the price elasticity to SOL is exactly 1.0, because price is linear in the SOL price at a fixed
-multiple. That is precisely why this page decomposes the return instead of asserting a leverage multiplier.</p>
+gearing on book equity. Which one moves the share price depends on how the market values the treasury, which is
+why the band spans a range of multiples rather than asserting one, and why the realised beta is reported
+alongside it.</p>
 
 <h4>The synthetic SOL ETF</h4>
 <p>SOL spot compounded with the staking yield implied by the dfdvSOL exchange rate over the trailing 90 days
@@ -1253,6 +1317,8 @@ fraction constant and lets float track the share count — the level is exact to
 <h4>Known limitations</h4>
 <ul>
   <li>13F holdings lag by up to a quarter and cover institutions only.</li>
+  <li>SLON is a 2× <i>daily</i> reset product listed ${dateLabel(M.slon_inception)}; it is spliced onto SOL
+      spot at listing, and its path reflects daily compounding, not 2× the period return.</li>
   <li>The synthetic ETF assumes fully-staked assets and no tracking error or premium/discount to NAV.</li>
   <li>Treasury holdings step on announcement dates, not settlement dates.</li>
   <li>Rebasing means every percentage on the charts is relative to the start of the window you have selected.</li>
@@ -1322,7 +1388,7 @@ fraction constant and lets float track the share count — the level is exact to
 
   // Draw synchronously: requestAnimationFrame never fires in a backgrounded tab,
   // which would leave the charts blank for anyone opening the page in a new tab.
-  const charts = [c1, c2, c2b, c3, c4, c5];
+  const charts = [c1, c2, c3, c4, c5];
   const drawAll = () => charts.forEach(c => c.draw());
   drawAll();
   // Re-draw once webfonts settle, since tick labels are measured.

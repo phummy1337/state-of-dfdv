@@ -62,6 +62,9 @@ ETF_STAKING_FEE = 0.06  # BSOL's cut of staking rewards after the launch waiver
 PERP_TAKER_FEE = 0.00045  # Hyperliquid taker fee, charged once at entry
 BSOL_TICKER = "BSOL"
 BSOL_INCEPTION = "2025-10-28"
+# ProShares Ultra Solana - 2x daily levered SOL. Listed 2025-07-15.
+SLON_TICKER = "SLON"
+SLON_INCEPTION = "2025-07-15"
 
 DFDV_API = "https://defidevcorp.com/api/dashboard"
 NASDAQ_HEADERS = {
@@ -446,6 +449,7 @@ def build(dry: bool = False) -> dict:
     print("Fetching Nasdaq (prices, short interest, holders)...")
     px = nasdaq_ohlcv("DFDV", "stocks", "2025-03-01")
     bsol = nasdaq_ohlcv(BSOL_TICKER, "etf", BSOL_INCEPTION)
+    slon = nasdaq_ohlcv(SLON_TICKER, "etf", SLON_INCEPTION)
     short_rows = nasdaq_short_interest("DFDV")
     summary = nasdaq_summary("DFDV")
     holders = nasdaq_holders("DFDV")
@@ -511,20 +515,14 @@ def build(dry: bool = False) -> dict:
     dates: list[str] = []
     s_dfdv, s_sol, s_etf, s_bsol, s_perp = [], [], [], [], []
     s_lev, s_sps, s_mnav = [], [], []
-    # Price decomposition. DFDV's share price satisfies an exact identity:
-    #
-    #     price = mNAV x SOL-per-share x SOL price
-    #
-    # because NAV per share is SPS x SOL price and mNAV is price / NAV per share. So the
-    # return over any window factors cleanly into three multiplicative drivers - the SOL
-    # market, treasury growth, and the multiple the market pays - with no modelling and no
-    # leverage assumption. `navps` is the NAV-per-share leg (SPS x SOL price) in dollars.
+    # DFDV's close and its NAV per share (SPS x SOL price), both in dollars.
     s_price, s_navps = [], []
 
     etf_idx = perp_idx = 100.0
     base_dfdv = px[trading_days[0]]["close"]
     base_sol = sol_on(trading_days[0])
     bsol_base = bsol_anchor = None
+    slon_base = slon_anchor = None
     prev = None  # (sol_price, sps, leverage)
 
     for d in trading_days:
@@ -563,6 +561,9 @@ def build(dry: bool = False) -> dict:
         s_sps.append(round(sps, 8))
         s_mnav.append(round(mktcap / sol_nav, 4) if sol_nav else None)
 
+        if d in slon and slon_base is None:
+            # 2x wrapper on the same asset, so anchor it to SOL spot at listing.
+            slon_base, slon_anchor = slon[d]["close"], s_sol[-1]
         if d in bsol and bsol_base is None:
             # BSOL only lists from 2025-10-28. Splice it in at the synthetic ETF's index
             # level that day so the two lines are directly comparable from there on.
@@ -573,45 +574,76 @@ def build(dry: bool = False) -> dict:
         for d in dates
     ] if bsol_base else [None] * len(dates)
 
-    # The expected-value band, in dollars per share rather than as an indexed return.
+    s_slon = [
+        (round(slon[d]["close"] / slon_base * slon_anchor, 4) if d in slon else None)
+        for d in dates
+    ] if slon_base else [None] * len(dates)
+
+    # The expected-performance band, built from DFDV's own historical leverage.
     #
-    # Expected price = NAV per share x the multiple the market has recently been paying.
-    # The edges take the 25th and 75th percentile of mNAV over a trailing 180 trading
-    # days, so the band answers "where would DFDV trade if it were valued the way it has
-    # lately been valued, given the treasury it now holds". Because both the band and the
-    # price are absolute dollar levels, changing the chart's time range only pans and
-    # zooms - it never redraws the band, which a rebased band would.
-    BAND_WINDOW = 180
-    band_lo, band_hi, band_pos = [], [], []
-    for i, navps in enumerate(s_navps):
-        window = [m for m in s_mnav[max(0, i - BAND_WINDOW + 1):i + 1] if m]
-        if not window or not navps:
-            band_lo.append(None)
-            band_hi.append(None)
+    # Each edge chains `beta x SOL return` at a constant beta taken from the observed
+    # distribution of DFDV's levered SOL exposure (SOL NAV / market cap): the 25th and
+    # 75th percentile for the edges, the median for the centre line. The band therefore
+    # reads "where a constant beta-times-SOL exposure would have put DFDV, across the
+    # range of leverage DFDV has actually run".
+    #
+    # There is deliberately no SOL-per-share term. Adding one would double-count, because
+    # beta is measured on SOL NAV, which already grows when debt or issuance buys more
+    # SOL. The cost of leaving it out is that this is a leverage benchmark and not a fair
+    # value: DFDV above the band can reflect treasury growth rather than richness.
+    lev_obs = [v for v in s_lev if v]
+    beta_lo = percentile(lev_obs, 0.25) if lev_obs else 1.0
+    beta_mid = percentile(lev_obs, 0.50) if lev_obs else 1.0
+    beta_hi = percentile(lev_obs, 0.75) if lev_obs else 1.0
+
+    def beta_path(beta):
+        idx, out = 100.0, [100.0]
+        for i in range(1, len(s_sol)):
+            prev = s_sol[i - 1]
+            r = (s_sol[i] / prev - 1.0) if prev else 0.0
+            idx *= max(1 + beta * r, 1e-6)
+            out.append(round(idx, 4))
+        return out
+
+    path_lo, path_mid, path_hi = beta_path(beta_lo), beta_path(beta_mid), beta_path(beta_hi)
+    # A higher beta ends lower when SOL falls, so the two edges cross; fill between the
+    # pointwise extremes rather than assuming one is always above the other.
+    band_lo = [round(min(x, y), 4) for x, y in zip(path_lo, path_hi)]
+    band_hi = [round(max(x, y), 4) for x, y in zip(path_lo, path_hi)]
+
+    from math import log
+    band_pos = []
+    for a_, lo_, hi_ in zip(s_dfdv, band_lo, band_hi):
+        try:
+            span = log(hi_) - log(lo_)
+            band_pos.append(round((log(a_) - log(lo_)) / span, 4) if abs(span) > 1e-9 else None)
+        except ValueError:
             band_pos.append(None)
-            continue
-        lo_m, hi_m = percentile(window, 0.25), percentile(window, 0.75)
-        lo, hi = navps * lo_m, navps * hi_m
-        band_lo.append(round(lo, 4))
-        band_hi.append(round(hi, 4))
-        # Where the actual price sits across the band: 0 = at the cheap edge, 1 = at the
-        # rich edge. Equivalent to where today's mNAV falls in its own trailing range.
-        band_pos.append(round((s_price[i] - lo) / (hi - lo), 4) if hi > lo else None)
 
-    # Exact multiplicative decomposition of the return since the treasury began.
-    def ratio(series):
-        return (series[-1] / series[0]) if series and series[0] else None
+    # Realised beta of DFDV to SOL: OLS slope of daily DFDV returns on daily SOL returns.
+    def realised_beta(window=None):
+        rd, rs = [], []
+        rng = range(1, len(s_dfdv)) if window is None else range(max(1, len(s_dfdv) - window), len(s_dfdv))
+        for i in rng:
+            if not s_dfdv[i - 1] or not s_sol[i - 1]:
+                continue
+            rd.append(s_dfdv[i] / s_dfdv[i - 1] - 1.0)
+            rs.append(s_sol[i] / s_sol[i - 1] - 1.0)
+        n = len(rs)
+        if n < 20:
+            return None
+        ms, md = sum(rs) / n, sum(rd) / n
+        var = sum((x - ms) ** 2 for x in rs)
+        if var <= 0:
+            return None
+        cov = sum((rs[i] - ms) * (rd[i] - md) for i in range(n))
+        return cov / var
 
-    decomposition = {
-        "sol": ratio(s_sol),
-        "sps": ratio(s_sps),
-        "mnav": ratio(s_mnav),
-        "dfdv": ratio(s_dfdv),
-        "product": None,
+    beta_stats = {
+        "all": realised_beta(),
+        "d90": realised_beta(90),
+        "d30": realised_beta(30),
     }
-    if all(decomposition[k] for k in ("sol", "sps", "mnav")):
-        decomposition["product"] = decomposition["sol"] * decomposition["sps"] * decomposition["mnav"]
-        decomposition["residual_pct"] = abs(decomposition["product"] - decomposition["dfdv"]) / decomposition["dfdv"] * 100
 
     lev_vals = [v for v in s_lev if v]
     leverage_stats = {
@@ -669,19 +701,21 @@ def build(dry: bool = False) -> dict:
     compare = {}
     for label, series in (
         ("dfdv", s_dfdv), ("sol", s_sol), ("etf", s_etf), ("perp", s_perp),
-        ("navps", s_navps), ("sps", s_sps), ("mnav", s_mnav),
+        ("slon", s_slon), ("band_lo", band_lo), ("band_hi", band_hi), ("band_mid", path_mid),
     ):
         row = {k: index_ret(series, n) for k, n in windows}
         row["ytd"] = index_ret(series, since=ytd_anchor)
         row["treasury"] = index_ret(series, since=dates[0])
         compare[label] = row
     # BSOL only exists post-launch; report it from its own inception.
-    bsol_vals = [(d, v) for d, v in zip(dates, s_bsol) if v is not None]
-    if bsol_vals:
-        compare["bsol"] = {k: index_ret(s_bsol, n) for k, n in windows}
-        compare["bsol"]["ytd"] = index_ret(s_bsol, since=ytd_anchor)
-        compare["bsol"]["treasury"] = None
-        compare["bsol"]["since_launch"] = pct_change(bsol_vals[-1][1], bsol_vals[0][1])
+    for key, series in (("bsol", s_bsol), ("slon", s_slon)):
+        vals = [v for v in series if v is not None]
+        if not vals:
+            continue
+        compare[key] = {k: index_ret(series, n) for k, n in windows}
+        compare[key]["ytd"] = index_ret(series, since=ytd_anchor)
+        compare[key]["treasury"] = None
+        compare[key]["since_launch"] = pct_change(vals[-1], vals[0])
 
     # --- short interest ----------------------------------------------------
     vols = sorted((d, v["volume"]) for d, v in px.items() if v["volume"])
@@ -756,6 +790,7 @@ def build(dry: bool = False) -> dict:
             "staking_apy_pct": round(staking_apy, 2),
             "perp_taker_fee_bps": PERP_TAKER_FEE * 10000,
             "bsol_inception": BSOL_INCEPTION,
+        "slon_inception": SLON_INCEPTION,
         },
         "headline": {
             "price": dfdv_now["price"],
@@ -810,7 +845,8 @@ def build(dry: bool = False) -> dict:
         "compare": compare,
         "leverage_stats": leverage_stats,
         "band_position": band_pos[-1] if band_pos else None,
-        "decomposition": decomposition,
+        "band_betas": {"lo": round(beta_lo, 3), "mid": round(beta_mid, 3), "hi": round(beta_hi, 3)},
+        "beta_stats": beta_stats,
         "series": {
             "dates": dates,
             "dfdv": s_dfdv,
@@ -818,10 +854,11 @@ def build(dry: bool = False) -> dict:
             "etf": s_etf,
             "bsol": s_bsol,
             "perp": s_perp,
+            "slon": s_slon,        # 2x levered SOL ETF, spliced onto SOL spot at listing
             "price": s_price,      # DFDV close, dollars
-            "navps": s_navps,      # NAV per share = SPS x SOL price, dollars
-            "band_lo": band_lo,    # NAV/share x trailing-180d mNAV p25, dollars
-            "band_hi": band_hi,    # NAV/share x trailing-180d mNAV p75, dollars
+            "band_lo": band_lo,    # constant-beta SOL path, lower edge
+            "band_hi": band_hi,    # constant-beta SOL path, upper edge
+            "band_mid": path_mid,  # constant-beta SOL path at median leverage
             "band_pos": band_pos,
             "leverage": s_lev,
             "sps": s_sps,
@@ -858,9 +895,6 @@ def main() -> int:
     print("  since treasury: " + "  ".join(
         f"{k}={c[k]['treasury']:.0f}%" for k in ("dfdv", "sol", "etf", "perp")
         if c[k].get("treasury") is not None))
-    dc = data["decomposition"]
-    print(f"  decomposition: SOL {dc['sol']:.3f}x  x  SPS {dc['sps']:.3f}x  x  mNAV {dc['mnav']:.4f}x"
-          f"  =  {dc['product']:.4f}x   (actual {dc['dfdv']:.4f}x, residual {dc['residual_pct']:.3f}%)")
     print(f"  band position: {data['band_position']:.2f}  leverage {data['leverage_stats']}")
     if data["warnings"]:
         print(f"  warnings: {len(data['warnings'])}")
