@@ -84,6 +84,14 @@ button.seg{background:none;border:0;color:var(--ink-2);font:inherit;font-size:11
 button.seg+button.seg{border-left:1px solid var(--line-2)}
 button.seg:hover{color:var(--ink)}
 button.seg[aria-pressed=true]{background:var(--accent);color:#150c00;font-weight:600}
+button.seg:focus-visible,.dateinp:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.datectl{display:flex;align-items:center;gap:7px;background:var(--panel-2);
+  border:1px solid var(--line-2);border-radius:7px;padding:0 9px 0 10px}
+.datectl span{font-size:10.5px;text-transform:uppercase;letter-spacing:.075em;color:var(--ink-3)}
+.dateinp{background:none;border:0;color:var(--ink);font:inherit;font-size:11.5px;
+  font-family:var(--mono);padding:5px 0;cursor:pointer;min-width:104px}
+.dateinp::-webkit-calendar-picker-indicator{filter:invert(.65);cursor:pointer}
+.dateinp:hover{color:var(--accent)}
 .legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 2px;font-size:12.5px;color:var(--ink-2)}
 .legend .it{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
 .legend .it[aria-pressed=false]{opacity:.35}
@@ -233,27 +241,27 @@ function lineChart(opts) {
   const tip = el('div', { class: 'tip' });
   host.append(tip);
 
-  const state = { range: opts.defaultRange || 'max', log: !!opts.log, off: new Set() };
+  const state = { range: opts.defaultRange || 'max', log: !!opts.log, off: new Set(), from: null };
 
   function slice() {
     const d = opts.dates, n = d.length;
-    let from = 0;
-    if (state.range !== 'max') {
-      const last = new Date(d[n - 1] + 'T12:00:00Z');
-      let cut;
-      if (state.range === 'ytd') cut = `${last.getUTCFullYear() - 0}-01-01`;
-      else {
-        const days = { '1m': 30, '3m': 91, '6m': 182, '1y': 365 }[state.range];
-        const c = new Date(last); c.setUTCDate(c.getUTCDate() - days);
-        cut = c.toISOString().slice(0, 10);
-      }
-      // Base the window on the last trading day at or BEFORE the anchor, which is the
-      // same convention the return tiles and the comparison table use - otherwise a
-      // YTD chart would start from Jan 2 and disagree with the YTD tile.
-      const i = d.findIndex(x => x > cut);
-      from = i < 0 ? d.length - 1 : Math.max(0, i - 1);
+    if (state.range === 'max') return 0;
+    let cut;
+    if (state.range === 'custom') cut = state.from;
+    else if (state.range === 'ytd') {
+      cut = `${new Date(d[n - 1] + 'T12:00:00Z').getUTCFullYear()}-01-01`;
+    } else {
+      const c = new Date(d[n - 1] + 'T12:00:00Z');
+      c.setUTCDate(c.getUTCDate() - { '1m': 30, '3m': 91, '6m': 182, '1y': 365 }[state.range]);
+      cut = c.toISOString().slice(0, 10);
     }
-    return from;
+    if (!cut) return 0;
+    // Base the window on the last trading day at or BEFORE the anchor, which is the
+    // same convention the return tiles and the comparison table use - otherwise a
+    // YTD chart would start from Jan 2 and disagree with the YTD tile.
+    const i = d.findIndex(x => x > cut);
+    const from = i < 0 ? n - 1 : Math.max(0, i - 1);
+    return Math.min(from, Math.max(0, n - 2)); // always leave at least two points to draw
   }
 
   function draw() {
@@ -498,6 +506,49 @@ function segGroup(items, cur, onPick) {
   return g;
 }
 
+/* Preset ranges plus a free start date. The two are mutually exclusive: picking a
+   preset clears the date, and picking a date deselects the presets. */
+function rangeControls(chart, dates) {
+  const grp = el('div', { class: 'grp' });
+  let dateInput;
+  const btns = RANGES.map(([val, label]) => {
+    const b = el('button', { class: 'seg', type: 'button', 'aria-pressed': String(val === chart.state.range) }, label);
+    b.addEventListener('click', () => {
+      btns.forEach(x => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      dateInput.value = '';
+      chart.state.range = val;
+      chart.state.from = null;
+      chart.draw();
+    });
+    grp.append(b);
+    return b;
+  });
+
+  dateInput = el('input', {
+    type: 'date', class: 'dateinp', min: dates[0], max: dates[dates.length - 1],
+    'aria-label': 'Start the chart from a specific date',
+  });
+  dateInput.addEventListener('change', () => {
+    btns.forEach(x => x.setAttribute('aria-pressed', 'false'));
+    if (dateInput.value) {
+      chart.state.range = 'custom';
+      chart.state.from = dateInput.value;
+    } else {
+      // Cleared the field - fall back to the full history.
+      chart.state.range = 'max';
+      chart.state.from = null;
+      btns[btns.length - 1].setAttribute('aria-pressed', 'true');
+    }
+    chart.draw();
+  });
+
+  return el('div', { class: 'ctrls' }, [
+    grp,
+    el('label', { class: 'datectl' }, [el('span', {}, 'From'), dateInput]),
+  ]);
+}
+
 function legendFor(chart, series, values) {
   const box = el('div', { class: 'legend' });
   for (const s of series) {
@@ -635,7 +686,7 @@ function render(D) {
         el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
       ]),
       el('div', { class: 'ctrls' }, [
-        segGroup(RANGES, 'max', v => { c1.state.range = v; c1.draw(); }),
+        rangeControls(c1, S.dates),
         segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c1.state.log = v === 'log'; c1.draw(); }),
       ]),
     ]),
@@ -688,7 +739,7 @@ function render(D) {
           el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
         ]),
         el('div', { class: 'ctrls' }, [
-          segGroup(RANGES, 'max', v => { c2.state.range = v; c2.draw(); }),
+          rangeControls(c2, S.dates),
           segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c2.state.log = v === 'log'; c2.draw(); }),
         ]),
       ]),
