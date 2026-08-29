@@ -318,6 +318,18 @@ const sectionHead = (title, asof) => el('div', {}, [
 const PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
   'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor'];
 
+// Resolved once, lazily: the artifact viewer's download broker, or null anywhere else
+// (a plain web server, a local file) where an anchor download is the right path.
+let _downloads;
+function hostDownloads() {
+  if (_downloads === undefined) {
+    _downloads = (window.claude && typeof window.claude.use === 'function')
+      ? window.claude.use('downloads').catch(() => null)
+      : Promise.resolve(null);
+  }
+  return _downloads;
+}
+
 function inlinePaint(src, dst) {
   const cs = getComputedStyle(src);
   let css = '';
@@ -391,8 +403,22 @@ function exportPNG(svg, meta) {
     const ctx = c.getContext('2d');
     ctx.scale(scale, scale);
     ctx.drawImage(img, 0, 0);
-    c.toBlob(b => {
+    c.toBlob(async b => {
       if (!b) return;
+      // Served from a normal origin an anchor download just works. Inside the
+      // claude.ai artifact viewer the sandbox makes page-initiated saves inert, so
+      // the file has to be handed over through the downloads capability instead.
+      const dl = await hostDownloads();
+      if (dl) {
+        try {
+          await dl.save({ filename: meta.filename, data: b });
+        } catch (err) {
+          if (err && err.code && err.code !== 'declined' && err.code !== 'rate_limited') {
+            alert('Could not save the PNG: ' + (err.message || err.code));
+          }
+        }
+        return;
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(b);
       a.download = meta.filename;
