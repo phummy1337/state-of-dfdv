@@ -53,6 +53,21 @@ No API keys are required for any of it.
 - **`api.hyperliquid.xyz`** — hourly realised SOL perpetual funding, paged back to
   the treasury start date.
 - **`stockanalysis.com`** — public float and insider ownership percentage.
+- **`data.sec.gov` / `www.sec.gov/Archives`** — the EDGAR filing feed for CIK
+  1805526 (the Latest Filings section). SEC's fair-access policy requires a
+  declared `User-Agent` carrying a contact address; requests without one get a
+  403. `EDGAR_UA` in `refresh_data.py` holds it — change the address there if you
+  would rather use a role account than a personal one.
+
+### Staking yield
+
+DFDV's filings discuss staking reward revenue but publish **no headline yield
+percentage**, and there is no XBRL tag for one, so nothing can be read out of the
+latest filing automatically. `REPORTED_STAKING_YIELD_PCT` at the top of
+`refresh_data.py` is the override: set it to the figure the company reports and the
+tile uses it verbatim and cites the filing it came from. Left as `None`, the tile
+falls back to the yield implied by the dfdvSOL exchange rate and says so on its face
+rather than implying the number was filed.
 
 None of these send CORS headers, so the browser cannot call them directly. That is
 why the data is fetched server-side into `data.json` rather than live from the page.

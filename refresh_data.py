@@ -50,6 +50,13 @@ INCEPTION = "2025-04-04"
 # therefore where any leverage/SPS-based comparison can honestly start.
 TREASURY_START = "2025-04-11"
 
+# Staking yield. DFDV's SEC filings discuss staking reward revenue but publish no
+# headline yield percentage, and there is no XBRL tag for one - so there is nothing to
+# read out of the most recent filing automatically. Set this to the figure the company
+# reports and it is used verbatim and cited; leave it None and the page falls back to
+# the yield implied by the dfdvSOL exchange rate, labelled as derived rather than filed.
+REPORTED_STAKING_YIELD_PCT = None
+
 ETF_MGMT_FEE = 0.0020  # BSOL headline sponsor fee, 20bps
 ETF_STAKING_FEE = 0.06  # BSOL's cut of staking rewards after the launch waiver
 PERP_TAKER_FEE = 0.00045  # Hyperliquid taker fee, charged once at entry
@@ -67,6 +74,13 @@ NASDAQ_HEADERS = {
     "Referer": "https://www.nasdaq.com/",
 }
 PLAIN_UA = {"User-Agent": NASDAQ_HEADERS["User-Agent"]}
+
+# SEC's fair-access policy requires a declared User-Agent carrying a contact address;
+# requests without one get a 403 from both data.sec.gov and www.sec.gov/Archives.
+# Same string the crypto-treasury-dashboard scraper uses.
+EDGAR_UA = {"User-Agent": "state-of-dfdv pete@defidevcorp.com"}
+DFDV_CIK = "0001805526"
+FILINGS_KEPT = 60
 
 WARNINGS: list[str] = []
 
@@ -272,6 +286,55 @@ def hyperliquid_funding(start_iso: str) -> dict[str, float]:
     return daily
 
 
+FORM_LABELS = {
+    "10-K": "Annual report", "10-Q": "Quarterly report", "8-K": "Current report",
+    "4": "Insider transaction", "3": "Initial insider statement", "5": "Annual insider statement",
+    "S-1": "Registration statement", "S-1/A": "Registration statement (amended)",
+    "S-3": "Shelf registration", "S-3/A": "Shelf registration (amended)",
+    "424B5": "Prospectus supplement", "424B3": "Prospectus supplement",
+    "DEF 14A": "Proxy statement", "DEF 14C": "Information statement",
+    "PRE 14C": "Information statement (preliminary)", "SC 13D": "Beneficial ownership",
+    "SC 13G": "Beneficial ownership", "EFFECT": "Registration effective",
+    "CORRESP": "Correspondence", "UPLOAD": "SEC staff letter", "144": "Proposed sale",
+}
+
+
+def sec_filings(cik: str = DFDV_CIK, keep: int = FILINGS_KEPT) -> dict:
+    """Recent EDGAR filings: date, form, what it is, and links to the document."""
+    data = get_json(f"https://data.sec.gov/submissions/CIK{cik}.json", EDGAR_UA)
+    recent = data.get("filings", {}).get("recent", {})
+    n = len(recent.get("form", []))
+    bare = str(int(cik))
+    out = []
+    for i in range(min(n, keep)):
+        acc = recent["accessionNumber"][i]
+        acc_flat = acc.replace("-", "")
+        doc = recent["primaryDocument"][i] or ""
+        form = recent["form"][i]
+        desc = (recent.get("primaryDocDescription") or [""] * n)[i] or ""
+        items = (recent.get("items") or [""] * n)[i] or ""
+        base = f"https://www.sec.gov/Archives/edgar/data/{bare}/{acc_flat}"
+        out.append({
+            "date": recent["filingDate"][i],
+            "report_date": (recent.get("reportDate") or [""] * n)[i] or None,
+            "form": form,
+            # primaryDocDescription often just repeats the form; prefer a plain-English label.
+            "label": FORM_LABELS.get(form) or (desc if desc and desc != form else "Filing"),
+            "items": items,
+            "url": f"{base}/{doc}" if doc else f"{base}/{acc}-index.htm",
+            "index_url": f"{base}/{acc}-index.htm",
+        })
+    latest = {}
+    for f in out:
+        latest.setdefault(f["form"], f)
+    return {
+        "entity": data.get("name"),
+        "cik": cik,
+        "filings": out,
+        "latest_by_form": {k: latest[k] for k in ("10-K", "10-Q", "8-K") if k in latest},
+    }
+
+
 def stockanalysis_stats(symbol: str) -> dict:
     """Public float and insider ownership, parsed out of stockanalysis.com's inline JSON.
 
@@ -345,6 +408,13 @@ def build(dry: bool = False) -> dict:
     print("Fetching Hyperliquid SOL funding...")
     funding = hyperliquid_funding(TREASURY_START)
 
+    print("Fetching SEC filings...")
+    try:
+        filings = sec_filings()
+    except Exception as exc:  # noqa: BLE001 - the page degrades to no filings list
+        warn(f"SEC filings fetch failed ({exc}); filings section will be empty")
+        filings = {"entity": None, "cik": DFDV_CIK, "filings": [], "latest_by_form": {}}
+
     sa = stockanalysis_stats("DFDV")
     float_shares = int(sa["float"]) if sa.get("float") else None
     float_source = sa.get("source", "")
@@ -367,10 +437,19 @@ def build(dry: bool = False) -> dict:
         i = bisect_right(sol_keys, d) - 1
         return sol_px[sol_keys[i]] if i >= 0 else None
 
-    staking_apy = staking_apy_from_dfdvsol(dfdvsol_rate)
-    if staking_apy is None:
-        staking_apy = 6.5
-        warn("could not derive staking APY from dfdvSOL rate; using 6.5% default")
+    latest_report = filings["latest_by_form"].get("10-Q") or filings["latest_by_form"].get("10-K")
+    if REPORTED_STAKING_YIELD_PCT is not None:
+        staking_apy = REPORTED_STAKING_YIELD_PCT
+        staking_source = (f"per {latest_report['form']} filed {latest_report['date']}"
+                          if latest_report else "as reported")
+        staking_source_url = latest_report["url"] if latest_report else None
+    else:
+        staking_apy = staking_apy_from_dfdvsol(dfdvsol_rate)
+        if staking_apy is None:
+            staking_apy = 6.5
+            warn("could not derive staking APY from dfdvSOL rate; using 6.5% default")
+        staking_source = "implied by the dfdvSOL rate — filings state no yield"
+        staking_source_url = latest_report["url"] if latest_report else None
     # An ETF keeps the staking yield net of the manager's cut of rewards.
     etf_daily_yield = (staking_apy / 100.0) * (1 - ETF_STAKING_FEE) / 365.0
     etf_daily_fee = ETF_MGMT_FEE / 365.0
@@ -658,6 +737,9 @@ def build(dry: bool = False) -> dict:
             "put_call_ratio": opt.get("put_call_ratio"),
             "options_avg_duration_days": opt.get("avg_duration_days"),
             "staking_apy_pct": round(staking_apy, 2),
+            "staking_apy_source": staking_source,
+            "staking_apy_source_url": staking_source_url,
+            "latest_report": latest_report,
             "sol_gain_ytd": sol_now.get("sol_gain_ytd"),
             "sol_gain_3m": sol_now.get("sol_gain_3m"),
             "short": {
@@ -696,6 +778,7 @@ def build(dry: bool = False) -> dict:
         "options_peers": opt_peers,
         "debt": debt,
         "ownership": holders,
+        "filings": filings,
         "warnings": WARNINGS,
     }
     return data
