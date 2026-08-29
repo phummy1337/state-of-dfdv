@@ -261,6 +261,16 @@ footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
   .hcard .v{font-size:25px}
   .trio{grid-template-columns:1fr}
 }
+.split{display:grid;grid-template-columns:minmax(310px,3.5fr) 8.5fr;gap:0 28px}
+.split-left,.split-right{min-width:0}
+.split-right{display:flex;flex-direction:column}
+.split .tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+.split .tile{padding:11px 13px}
+.split .tile .k{font-size:11.5px}
+.split .tile .v{font-size:22px}
+.split .shead{flex-wrap:wrap;row-gap:4px}
+.split .shead .asof{white-space:normal}
+@media (max-width:1180px){ .split{grid-template-columns:1fr;gap:26px} }
 .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 @media (max-width:1080px){ .trio{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
@@ -274,16 +284,7 @@ footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
   <header>
     <div class="top">
       <div>
-        <h1><svg class="mark" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <defs><linearGradient id="dfdvg" x1="30" y1="2" x2="6" y2="32" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#F5A524"></stop><stop offset="1" stop-color="#ED3D24"></stop>
-          </linearGradient></defs>
-          <g fill="url(#dfdvg)">
-            <rect x="6"  y="6"  width="25" height="5.4" rx="2.7" transform="skewX(-14)"/>
-            <rect x="6"  y="14.3" width="25" height="5.4" rx="2.7" transform="skewX(-14)"/>
-            <rect x="6"  y="22.6" width="25" height="5.4" rx="2.7" transform="skewX(-14)"/>
-          </g>
-        </svg>State of DFDV</h1>
+        <h1><svg class="mark" viewBox="0 0 548 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="dfdvMark" x1="121.6" y1="320.9" x2="426.11" y2="16.4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f18f34"/><stop offset="1" stop-color="#ff4431"/></linearGradient></defs><path fill="url(#dfdvMark)" d="M410.25,110.94V.54H137.47v110.4C86.5,129.98,39.74,159.82,0,199.3h44.22c28.31-23.66,59.71-42.58,93.25-56.35v56.21h29.82v-66.91c34.06-10.55,69.89-16.01,106.57-16.01s72.51,5.47,106.57,16.02v66.9h29.82v-56.19c33.52,13.77,64.93,32.67,93.23,56.33h44.22c-39.74-39.48-86.49-69.32-137.45-88.36ZM380.43,101.14c-34.22-9.71-70.01-14.71-106.57-14.71s-72.35,5-106.57,14.71V30.34h213.14v70.8Z"/></svg>State of DFDV</h1>
         <div class="tagline" id="tagline">Loading…</div>
       </div>
       <div class="topright">
@@ -350,7 +351,7 @@ function tile(k, v, sub, klass) {
     sub ? el('div', { class: 's' }, sub) : null,
   ]);
 }
-const tileGrid = (cols, items) => el('div', { class: 'tiles g' + cols }, items);
+const tileGrid = items => el('div', { class: 'tiles' }, items);
 const sectionHead = (title, asof) => el('div', { class: 'shead' }, [
   el('h2', {}, title),
   el('span', { class: 'rule' }),
@@ -520,7 +521,10 @@ function lineChart(opts) {
     const N = dates.length;
     // Match the viewBox to the rendered pixel width so 1 unit == 1 px. A fixed
     // viewBox would shrink all the type in the narrow small-multiple panels.
-    const W = Math.max(320, Math.round(host.clientWidth || 1000)), H = opts.height || 400;
+    const W = Math.max(320, Math.round(host.clientWidth || 1000));
+    const H = opts.aspect
+      ? Math.max(opts.minHeight || 320, Math.round(W / opts.aspect))
+      : (opts.height || 400);
     const M = { t: 14, r: 62, b: 26, l: 54 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
 
@@ -878,7 +882,7 @@ function render(D) {
   const h = D.headline, S = D.series, M = D.methodology, L = D.leverage_stats, R = D.returns;
   renderMarquee(D.posts);
 
-  $('#tagline').textContent = 'How the Solana treasury strategy is actually performing.';
+  $('#tagline').textContent = "How DeFi Development Corp.'s (Nasdaq: DFDV) Solana treasury strategy is performing";
   $('#pilltxt').textContent = 'Updated ' + dateLabel((D.as_of.dfdv_api || '').slice(0, 10));
 
   $('#hero').append(
@@ -906,63 +910,8 @@ function render(D) {
 
   const main = $('#main');
 
-  /* 1. price performance -------------------------------------------------- */
-  main.append(el('section', {}, [
-    sectionHead('Price Performance', 'close of ' + dateLabel(D.as_of.price_date)),
-    el('div', { class: 'note' },
-      `Total return on the DFDV share price. "Since strategy" runs from the ${dateLabel(M.inception)} close — ` +
-      `the day the board adopted the digital-asset treasury policy, three days before it was announced. ` +
-      `That is the same basis DFDV's own dashboard uses.`),
-    tileGrid(8, [
-      tile('1 Day', pct(R['1d']), null, cls(R['1d'])),
-      tile('1 Week', pct(R['1w']), null, cls(R['1w'])),
-      tile('1 Month', pct(R['1m']), null, cls(R['1m'])),
-      tile('3 Month', pct(R['3m']), null, cls(R['3m'])),
-      tile('6 Month', pct(R['6m']), null, cls(R['6m'])),
-      tile('Year to Date', pct(R.ytd), null, cls(R.ytd)),
-      tile('1 Year', pct(R['1y']), null, cls(R['1y'])),
-      tile('Since Strategy', pct(R.inception, 0), dateLabel(M.inception), cls(R.inception)),
-    ]),
-  ]));
-
-  /* 2. treasury & leverage ------------------------------------------------ */
-  main.append(el('section', {}, [
-    sectionHead('Treasury & Leverage'),
-    el('div', { class: 'note' },
-      `SOL per share (SPS) is the treasury metric DFDV manages to. mNAV is market cap ÷ the gross value of the SOL ` +
-      `it holds; levered SOL exposure is its reciprocal — the dollars of SOL working behind each dollar of DFDV.`),
-    tileGrid(8, [
-      tile('SOL Held', int(h.sol_count), compact(h.sol_nav, '$') + ' at ' + usd(h.sol_price)),
-      tile('SOL Per Share', nf(h.sps, 5), 'SPS'),
-      tile('NAV / Share', usd(h.nav_per_share), 'gross SOL NAV'),
-      tile('Net NAV / Share', usd(h.net_nav_per_share), 'after debt'),
-      tile('mNAV', nf(h.mnav, 3) + '×', h.mnav < 1 ? 'discount to SOL' : 'premium to SOL'),
-      tile('SOL Exposure', nf(h.leverage, 2) + '×', `range ${nf(L.min, 2)}–${nf(L.max, 2)}×`),
-      tile('Total Debt', compact(h.total_debt, '$'), nf(h.debt_to_mktcap, 2) + '× market cap'),
-      tile('Staking Yield', nf(h.staking_apy_pct, 2) + '%', h.staking_apy_source),
-    ]),
-  ]));
-
-  /* 3. market structure --------------------------------------------------- */
+  /* 1. key metrics (left) + performance chart (right) --------------------- */
   const sh = h.short;
-  main.append(el('section', {}, [
-    sectionHead('Trading & Market Structure', 'short interest settled ' + dateLabel(sh.date)),
-    el('div', { class: 'note' },
-      `Short interest is reported semi-monthly by FINRA. Days to cover uses Nasdaq's average daily volume at that ` +
-      `settlement. Float is ${int(h.float_shares)} shares (${h.float_source}), against ${int(h.shares_outstanding)} outstanding.`),
-    tileGrid(8, [
-      tile('Volume', compact(h.volume), 'latest session'),
-      tile('Avg Volume 30d', compact(h.avg_volume_30d), '90d ' + compact(h.avg_volume_90d)),
-      tile('Short Interest', compact(sh.shares), pct(sh.change_pct, 1) + ' vs prior'),
-      tile('Short % of Float', nf(sh.pct_float, 1) + '%', nf(sh.pct_shares_out, 1) + '% of shares out'),
-      tile('Days to Cover', nf(sh.days_to_cover, 1), 'at settlement ADV'),
-      tile('Options OI', compact(h.options_oi_musd * 1e6, '$'), 'put/call ' + nf(h.put_call_ratio, 2)),
-      tile('Implied Vol', nf(h.implied_volatility * 100, 0) + '%', 'realised ' + nf(h.historic_volatility * 100, 0) + '%'),
-      tile('52-Week Range', h.week52_high_low || '—', `inst. ${nf(h.institutional_pct, 1)}% · insiders ${nf(h.insider_pct, 1)}%`),
-    ]),
-  ]));
-
-  /* 4. performance race --------------------------------------------------- */
   const SERIES = [
     { key: 'dfdv', label: 'DFDV', color: 'var(--s-dfdv)', width: 2.5, values: S.dfdv },
     { key: 'etf', label: 'SOL ETF (synthetic)', color: 'var(--s-etf)', values: S.etf },
@@ -971,33 +920,57 @@ function render(D) {
     { key: 'perp', label: 'SOL perp 1× (net funding)', color: 'var(--s-perp)', values: S.perp },
   ];
   const c1 = lineChart({
-    dates: S.dates, series: SERIES, log: true, height: 420,
+    dates: S.dates, series: SERIES, log: true, aspect: 2, minHeight: 340,
     aria: 'DFDV total return versus SOL spot, a synthetic SOL ETF, actual BSOL, and a 1x SOL perpetual',
     fmtAxis: (v, step) => pct(v - 100, step && step < 5 ? 1 : 0), fmtTip: v => pct(v - 100, 1),
   });
-  main.append(el('section', {}, [
-    sectionHead('Historical Performance'),
-    el('div', { class: 'note' },
-      `Every line is a way of holding the same underlying asset. The synthetic SOL ETF earns the staking yield ` +
-      `implied by dfdvSOL (${nf(M.staking_apy_pct, 2)}% annualised) less a ${nf(M.etf_mgmt_fee_pct, 2)}% sponsor fee and ` +
-      `a ${nf(M.etf_staking_fee_pct, 0)}% cut of staking rewards — BSOL's published schedule. It is drawn across the whole ` +
-      `window because no spot SOL ETF existed before ${dateLabel(M.bsol_inception)}; actual BSOL is spliced in dashed from ` +
-      `its launch as a check on the model. The perp is a 1× long paying realised Hyperliquid funding, ` +
-      `less a ${nf(M.perp_taker_fee_bps, 1)}bp taker fee at entry.`),
-    el('div', { class: 'panel' }, [
-      el('div', { class: 'panel-hd' }, [
-        el('div', {}, [
-          el('h3', {}, 'DFDV vs. the other ways to own SOL'),
-          el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
-        ]),
-        el('div', { class: 'ctrls' }, [
-          rangeControls(c1, S.dates),
-          segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c1.state.log = v === 'log'; c1.draw(); }),
-        ]),
+
+  main.append(el('section', { class: 'split' }, [
+    el('div', { class: 'split-left' }, [
+      sectionHead('Key Metrics', 'close of ' + dateLabel(D.as_of.price_date)),
+      tileGrid([
+        tile('1 Month', pct(R['1m']), null, cls(R['1m'])),
+        tile('3 Month', pct(R['3m']), null, cls(R['3m'])),
+        tile('6 Month', pct(R['6m']), null, cls(R['6m'])),
+        tile('Year to Date', pct(R.ytd), null, cls(R.ytd)),
+        tile('1 Year', pct(R['1y']), null, cls(R['1y'])),
+        tile('Staking Yield', nf(h.staking_apy_pct, 2) + '%', h.staking_apy_source),
+        tile('Total Debt', compact(h.total_debt, '$'), nf(h.debt_to_mktcap, 2) + '× market cap'),
+        tile('Volume', compact(h.volume), '30d avg ' + compact(h.avg_volume_30d)),
+        tile('Short Interest', compact(sh.shares), pct(sh.change_pct, 1) + ' vs prior'),
+        tile('Short % of Float', nf(sh.pct_float, 1) + '%', nf(sh.pct_shares_out, 1) + '% of shares out'),
+        tile('Days to Cover', nf(sh.days_to_cover, 1), 'at settlement ADV'),
+        tile('Options OI', compact(h.options_oi_musd * 1e6, '$'), 'put/call ' + nf(h.put_call_ratio, 2)),
+        tile('Implied Vol', nf(h.implied_volatility * 100, 0) + '%', 'realised ' + nf(h.historic_volatility * 100, 0) + '%'),
+        tile('52-Week Range', h.week52_high_low || '—', `inst. ${nf(h.institutional_pct, 1)}% · insiders ${nf(h.insider_pct, 1)}%`),
       ]),
-      legendFor(c1, SERIES),
-      c1.host,
-      dlRow(c1, 'DFDV vs. the other ways to own SOL', 'performance', SRC_LINE),
+      el('div', { class: 'note', style: 'margin-bottom:0' },
+        `Returns are on the DFDV share price. Short interest is FINRA's semi-monthly settlement, ` +
+        `latest ${dateLabel(sh.date)}, against a ${int(h.float_shares)}-share float.`),
+    ]),
+    el('div', { class: 'split-right' }, [
+      sectionHead('Historical Performance'),
+      el('div', { class: 'panel', style: 'margin-top:14px' }, [
+        el('div', { class: 'panel-hd' }, [
+          el('div', {}, [
+            el('h3', {}, 'DFDV vs. the other ways to own SOL'),
+            el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
+          ]),
+          el('div', { class: 'ctrls' }, [
+            rangeControls(c1, S.dates),
+            segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c1.state.log = v === 'log'; c1.draw(); }),
+          ]),
+        ]),
+        legendFor(c1, SERIES),
+        c1.host,
+        dlRow(c1, 'DFDV vs. the other ways to own SOL', 'performance', SRC_LINE),
+        el('div', { class: 'note', style: 'margin:12px 0 0' },
+          `Each line is a different wrapper on the same asset. The synthetic SOL ETF earns the dfdvSOL-implied ` +
+          `staking yield (${nf(M.staking_apy_pct, 2)}%) less a ${nf(M.etf_mgmt_fee_pct, 2)}% sponsor fee and a ` +
+          `${nf(M.etf_staking_fee_pct, 0)}% cut of rewards — BSOL's schedule — and runs the whole window because no ` +
+          `spot SOL ETF existed before ${dateLabel(M.bsol_inception)}; actual BSOL is spliced in dashed from launch. ` +
+          `The perp is a 1× long paying realised Hyperliquid funding, less ${nf(M.perp_taker_fee_bps, 1)}bp at entry.`),
+      ]),
     ]),
   ]));
 
@@ -1185,7 +1158,7 @@ function render(D) {
       `From 13F filings collated by Nasdaq. 13Fs are filed 45 days after quarter-end, so this lags — and holders ` +
       `report on different dates, shown per row. It covers institutions only; insiders hold about ` +
       `${nf(h.insider_pct, 1)}% and are not listed here.`),
-    tileGrid(4, [
+    tileGrid([
       tile('Institutional Ownership', nf(O.institutional_ownership_pct, 1) + '%', int(P['Total Institutional Shares']?.shares) + ' shares'),
       tile('Holders', int(P['Total Institutional Shares']?.holders), `${int(P['New Positions']?.holders)} new · ${int(P['Sold Out Positions']?.holders)} exited`),
       tile('Increased', int(P['Increased Positions']?.holders), int(P['Increased Positions']?.shares) + ' shares'),

@@ -494,7 +494,7 @@ def build(dry: bool = False) -> dict:
     latest_report = filings["latest_by_form"].get("10-Q") or filings["latest_by_form"].get("10-K")
     if REPORTED_STAKING_YIELD_PCT is not None:
         staking_apy = REPORTED_STAKING_YIELD_PCT
-        staking_source = (f"per {latest_report['form']} filed {latest_report['date']}"
+        staking_source = (f"per {latest_report['form']}, {latest_report['date']}"
                           if latest_report else "as reported")
         staking_source_url = latest_report["url"] if latest_report else None
     else:
@@ -502,7 +502,7 @@ def build(dry: bool = False) -> dict:
         if staking_apy is None:
             staking_apy = 6.5
             warn("could not derive staking APY from dfdvSOL rate; using 6.5% default")
-        staking_source = "implied by the dfdvSOL rate — filings state no yield"
+        staking_source = "dfdvSOL-implied; not in filings"
         staking_source_url = latest_report["url"] if latest_report else None
     # An ETF keeps the staking yield net of the manager's cut of rewards.
     etf_daily_yield = (staking_apy / 100.0) * (1 - ETF_STAKING_FEE) / 365.0
