@@ -377,18 +377,18 @@ def build(dry: bool = False) -> dict:
 
     dates: list[str] = []
     s_dfdv, s_sol, s_etf, s_bsol, s_perp = [], [], [], [], []
-    s_lev, s_sps, s_mnav, s_navps = [], [], [], []
-    # The expected-performance band. Its two edges are the honest bounds on what
-    # "expected given DFDV's leverage" can mean, using only published data:
-    #   lower edge = levered SOL beta alone: L[t-1] x SOL return, no credit for SPS growth
-    #   upper edge = The SOL Boost formula as written: levered beta + full SPS growth
-    # The truth sits between them, because some SPS growth is debt-funded and so is not
-    # accretive to equity per share at the moment it happens. Rather than model that split
-    # (which would need a daily net-debt series DFDV does not publish), we show the range.
-    exp_lev, exp_full = [], []
+    s_lev, s_sps, s_mnav = [], [], []
+    # Price decomposition. DFDV's share price satisfies an exact identity:
+    #
+    #     price = mNAV x SOL-per-share x SOL price
+    #
+    # because NAV per share is SPS x SOL price and mNAV is price / NAV per share. So the
+    # return over any window factors cleanly into three multiplicative drivers - the SOL
+    # market, treasury growth, and the multiple the market pays - with no modelling and no
+    # leverage assumption. `navps` is the NAV-per-share leg (SPS x SOL price) in dollars.
+    s_price, s_navps = [], []
 
     etf_idx = perp_idx = 100.0
-    exp_lev_idx = exp_full_idx = 100.0
     base_dfdv = px[trading_days[0]]["close"]
     base_sol = sol_on(trading_days[0])
     bsol_base = bsol_anchor = None
@@ -410,14 +410,10 @@ def build(dry: bool = False) -> dict:
         if prev is not None:
             p_sol, p_sps, p_lev = prev
             sol_r = sp / p_sol - 1.0
-            sps_g = (sps / p_sps - 1.0) if p_sps else 0.0
             f = funding.get(d, 0.0)
 
             etf_idx *= (1 + sol_r) * (1 + etf_daily_yield) * (1 - etf_daily_fee)
             perp_idx *= 1 + sol_r - f
-            # Expected equity return per The SOL Boost: levered SOL beta, then + SPS growth.
-            exp_lev_idx *= max(1 + p_lev * sol_r, 1e-6)
-            exp_full_idx *= max(1 + p_lev * sol_r + sps_g, 1e-6)
         else:
             perp_idx *= 1 - PERP_TAKER_FEE  # one entry fee on the theoretical perp
 
@@ -428,12 +424,11 @@ def build(dry: bool = False) -> dict:
         s_sol.append(round(sp / base_sol * 100, 4))
         s_etf.append(round(etf_idx, 4))
         s_perp.append(round(perp_idx, 4))
-        exp_lev.append(round(exp_lev_idx, 4))
-        exp_full.append(round(exp_full_idx, 4))
+        s_price.append(round(close, 4))
+        s_navps.append(round(navps, 4))
         s_lev.append(round(lev, 4))
         s_sps.append(round(sps, 8))
         s_mnav.append(round(mktcap / sol_nav, 4) if sol_nav else None)
-        s_navps.append(round(navps, 4))
 
         if d in bsol and bsol_base is None:
             # BSOL only lists from 2025-10-28. Splice it in at the synthetic ETF's index
@@ -445,18 +440,45 @@ def build(dry: bool = False) -> dict:
         for d in dates
     ] if bsol_base else [None] * len(dates)
 
-    # Where DFDV sits inside the expected band, in log space so the two edges (which are
-    # multiplicative return paths) are weighted evenly. 0 = at the levered-beta floor,
-    # 1 = at the full-SOL-Boost ceiling, >1 or <0 = outside the band entirely.
-    from math import log
-
-    band_pos = []
-    for a, lo, hi in zip(s_dfdv, exp_lev, exp_full):
-        try:
-            span = log(hi) - log(lo)
-            band_pos.append(round((log(a) - log(lo)) / span, 4) if abs(span) > 1e-9 else None)
-        except ValueError:
+    # The expected-value band, in dollars per share rather than as an indexed return.
+    #
+    # Expected price = NAV per share x the multiple the market has recently been paying.
+    # The edges take the 25th and 75th percentile of mNAV over a trailing 180 trading
+    # days, so the band answers "where would DFDV trade if it were valued the way it has
+    # lately been valued, given the treasury it now holds". Because both the band and the
+    # price are absolute dollar levels, changing the chart's time range only pans and
+    # zooms - it never redraws the band, which a rebased band would.
+    BAND_WINDOW = 180
+    band_lo, band_hi, band_pos = [], [], []
+    for i, navps in enumerate(s_navps):
+        window = [m for m in s_mnav[max(0, i - BAND_WINDOW + 1):i + 1] if m]
+        if not window or not navps:
+            band_lo.append(None)
+            band_hi.append(None)
             band_pos.append(None)
+            continue
+        lo_m, hi_m = percentile(window, 0.25), percentile(window, 0.75)
+        lo, hi = navps * lo_m, navps * hi_m
+        band_lo.append(round(lo, 4))
+        band_hi.append(round(hi, 4))
+        # Where the actual price sits across the band: 0 = at the cheap edge, 1 = at the
+        # rich edge. Equivalent to where today's mNAV falls in its own trailing range.
+        band_pos.append(round((s_price[i] - lo) / (hi - lo), 4) if hi > lo else None)
+
+    # Exact multiplicative decomposition of the return since the treasury began.
+    def ratio(series):
+        return (series[-1] / series[0]) if series and series[0] else None
+
+    decomposition = {
+        "sol": ratio(s_sol),
+        "sps": ratio(s_sps),
+        "mnav": ratio(s_mnav),
+        "dfdv": ratio(s_dfdv),
+        "product": None,
+    }
+    if all(decomposition[k] for k in ("sol", "sps", "mnav")):
+        decomposition["product"] = decomposition["sol"] * decomposition["sps"] * decomposition["mnav"]
+        decomposition["residual_pct"] = abs(decomposition["product"] - decomposition["dfdv"]) / decomposition["dfdv"] * 100
 
     lev_vals = [v for v in s_lev if v]
     leverage_stats = {
@@ -514,7 +536,7 @@ def build(dry: bool = False) -> dict:
     compare = {}
     for label, series in (
         ("dfdv", s_dfdv), ("sol", s_sol), ("etf", s_etf), ("perp", s_perp),
-        ("band_lo", exp_lev), ("band_hi", exp_full),
+        ("navps", s_navps), ("sps", s_sps), ("mnav", s_mnav),
     ):
         row = {k: index_ret(series, n) for k, n in windows}
         row["ytd"] = index_ret(series, since=ytd_anchor)
@@ -652,6 +674,7 @@ def build(dry: bool = False) -> dict:
         "compare": compare,
         "leverage_stats": leverage_stats,
         "band_position": band_pos[-1] if band_pos else None,
+        "decomposition": decomposition,
         "series": {
             "dates": dates,
             "dfdv": s_dfdv,
@@ -659,8 +682,10 @@ def build(dry: bool = False) -> dict:
             "etf": s_etf,
             "bsol": s_bsol,
             "perp": s_perp,
-            "band_lo": exp_lev,   # levered SOL beta only
-            "band_hi": exp_full,  # levered beta + full SPS growth
+            "price": s_price,      # DFDV close, dollars
+            "navps": s_navps,      # NAV per share = SPS x SOL price, dollars
+            "band_lo": band_lo,    # NAV/share x trailing-180d mNAV p25, dollars
+            "band_hi": band_hi,    # NAV/share x trailing-180d mNAV p75, dollars
             "band_pos": band_pos,
             "leverage": s_lev,
             "sps": s_sps,
@@ -693,8 +718,11 @@ def main() -> int:
     print(f"  holders: {len(data['ownership']['holders'])}, inst {data['ownership']['institutional_ownership_pct']}%")
     c = data["compare"]
     print("  since treasury: " + "  ".join(
-        f"{k}={c[k]['treasury']:.0f}%" for k in ("dfdv", "sol", "etf", "perp", "band_lo", "band_hi")
+        f"{k}={c[k]['treasury']:.0f}%" for k in ("dfdv", "sol", "etf", "perp")
         if c[k].get("treasury") is not None))
+    dc = data["decomposition"]
+    print(f"  decomposition: SOL {dc['sol']:.3f}x  x  SPS {dc['sps']:.3f}x  x  mNAV {dc['mnav']:.4f}x"
+          f"  =  {dc['product']:.4f}x   (actual {dc['dfdv']:.4f}x, residual {dc['residual_pct']:.3f}%)")
     print(f"  band position: {data['band_position']:.2f}  leverage {data['leverage_stats']}")
     if data["warnings"]:
         print(f"  warnings: {len(data['warnings'])}")

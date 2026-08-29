@@ -62,15 +62,36 @@ why the data is fetched server-side into `data.json` rather than live from the p
 The page has a "Methodology & sources" panel that documents every construction.
 The three that involve modelling choices:
 
-**Expected-performance band.** Both edges chain daily returns from 2025-04-11, the
-first SOL purchase. The floor is `L[t-1] × SOL return[t]` — pure levered SOL beta,
-where `L` is SOL NAV ÷ market cap. The ceiling adds the SPS-growth term from
-[The SOL Boost](https://defidevcorp.beehiiv.com/p/the-sol-boost):
-`L[t-1] × SOL return[t] + SPS growth[t]`. The truth is between them, because SPS
-growth funded by debt raises assets and liabilities together and is not accretive
-to equity at the moment it happens. Separating accretive from non-accretive SPS
-growth would need a daily net-debt series DFDV does not publish, so the page shows
-the range instead of picking a point inside it.
+**Return decomposition.** NAV per share is `SPS × SOL price` and mNAV is
+`price ÷ NAV per share`, so the share price satisfies an exact identity:
+
+```
+price = mNAV × SOL per share × SOL price
+```
+
+The return over any window therefore factors into three multiplicative drivers with
+nothing estimated. Since the first purchase: `0.955× × 9.071× × 0.0785× = 0.6807×`
+against an actual `0.6807×` — a 0.007% residual, which is rounding.
+
+> An earlier version of this page chained `leverage × SOL return + SPS growth`,
+> following the additive framing in
+> [The SOL Boost](https://defidevcorp.beehiiv.com/p/the-sol-boost). That was wrong.
+> Levered SOL exposure is `SOL NAV ÷ market cap`, which already rises when debt buys
+> more SOL — so adding the SPS-growth term counts the same debt-funded SOL twice.
+> The identity above needs no leverage assumption at all.
+
+**Valuation band.** `NAV per share × the 25th and 75th percentile of mNAV over the
+trailing 180 trading days` — where DFDV would trade if the market paid the multiple
+it has lately been paying. Drawn in dollars per share, not as an indexed return, so
+changing the chart's range pans and zooms it rather than redrawing it.
+
+**On "leverage".** Two numbers travel under that word, and neither is a price
+multiplier on its own. `SOL NAV ÷ market cap` (~1.59×) is SOL exposure per dollar of
+market value. `SOL NAV ÷ (SOL NAV − net debt)` (~5.18×) is the true gearing on book
+equity. Which one moves the share price depends on whether the market re-rates —
+hold mNAV fixed and the elasticity to SOL is exactly 1.0, since price is linear in
+the SOL price at a fixed multiple. That is why the page decomposes the return rather
+than asserting a multiplier.
 
 **Synthetic SOL ETF.** SOL spot compounded with the staking yield implied by the
 dfdvSOL exchange rate over the trailing 90 days, less a 0.20% sponsor fee and a 6%

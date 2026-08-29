@@ -7,167 +7,242 @@
 <meta name="description" content="Performance, treasury, leverage and market-structure dashboard for DeFi Development Corp (Nasdaq: DFDV).">
 <meta property="og:title" content="State of DFDV">
 <meta property="og:description" content="How DFDV is performing against SOL, a SOL ETF, a SOL perp, and its own leverage-implied expected range.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap">
 <style>
 /* ---------------------------------------------------------------------------
-   Palette. Categorical series slots are the validated order
-   [#cc7a00, #199e70, #3987e5, #d55181] on the #0a0a0a surface:
-   worst adjacent CVD dE 9.1, worst adjacent normal-vision dE 20.9, all slots
-   inside the dark lightness band and above 3:1 contrast. Do not re-order or
-   substitute without re-running the palette validator.
-   --accent is UI chrome (headings, rules, focus) and is never a series color.
+   State of DFDV.
+
+   Palette, type and component metrics are adopted from stateofsol.com so the two
+   dashboards read as one family: deep navy ground, translucent navy panels,
+   periwinkle hairlines and secondary text, Syne for the wordmark, section heads
+   and labels, orange reserved for UI accent.
+
+   The categorical series slots are the validated order
+   [#d07705, #199e70, #5b8def, #d55181] against the panel surface (#0a152b):
+   all inside the dark lightness band, worst adjacent CVD dE 9.3, worst adjacent
+   normal-vision dE 21.9, every slot over 3:1 on the surface. Do not re-order or
+   substitute without re-running the palette validator. --orange is UI chrome and
+   --mint / --neg are status; none of the three is ever a series color.
+
+   Committed single theme: this mirrors a dark-only house style, so there is no
+   light variant. Every color is painted explicitly from a token.
 --------------------------------------------------------------------------- */
 :root{
   color-scheme: dark;
-  --bg:#0a0a0a; --panel:#111111; --panel-2:#161616;
-  --line:#242424; --line-2:#2e2e2e;
-  --ink:#ededed; --ink-2:#a3a3a3; --ink-3:#6f6f6f;
-  --accent:#ff9900;
-  --s-dfdv:#cc7a00; --s-etf:#199e70; --s-sol:#3987e5; --s-perp:#d55181;
-  --good:#3aa76d; --bad:#e05252;
-  --band:rgba(204,122,0,.13); --band-edge:rgba(204,122,0,.4);
+  --bg:#030815;
+  --bg-glow:#0a1730;
+  --panel:rgba(13,26,52,.7);
+  --panel-2:rgba(13,26,52,.55);
+  --panel-solid:#0a152b;
+  --line:rgba(143,165,212,.16);
+  --line-2:rgba(143,165,212,.08);
+  --line-3:rgba(143,165,212,.22);
+
+  --ink:#F1F5FB;
+  --ink-2:#8FA5D4;
+  --ink-3:#6B7FAB;
+
+  --orange:#F97316;
+  --orange-dim:#c25a0f;
+  --mint:#14F195;
+  --neg:#FF6B6B;
+
+  --s-dfdv:#d07705; --s-etf:#199e70; --s-sol:#5b8def; --s-perp:#d55181;
+  --band:rgba(208,119,5,.14);
+  --band-edge:rgba(208,119,5,.42);
+
+  --syne:"Syne",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  background:var(--bg); color:var(--ink); font-family:var(--sans);
-  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  background:var(--bg);
+  background-image:radial-gradient(1100px 460px at 50% -170px, var(--bg-glow) 0%, transparent 70%);
+  background-repeat:no-repeat;
+  color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1200px;margin:0 auto;padding:0 20px 80px}
-a{color:var(--accent);text-decoration:none}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px 80px}
+a{color:var(--orange);text-decoration:none}
 a:hover{text-decoration:underline}
-.num{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:4px}
 
 /* header ------------------------------------------------------------------ */
-header{border-bottom:1px solid var(--line);margin-bottom:28px}
-.hdr{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;padding:30px 0 22px}
-h1{margin:0;font-size:27px;letter-spacing:-.02em;font-weight:650}
-h1 .dot{color:var(--accent)}
-.sub{color:var(--ink-2);font-size:13px;margin-top:5px}
-.hero{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap}
-.hero .big{font-size:38px;font-weight:600;letter-spacing:-.03em;line-height:1}
-.hero .chg{font-size:15px;font-weight:600;padding-bottom:3px}
-.hero .side{border-left:1px solid var(--line);padding-left:22px}
-.hero .side .k{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.09em}
-.hero .side .v{font-size:21px;font-weight:600;letter-spacing:-.02em;margin-top:3px}
+.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;padding:34px 0 22px}
+.brand{display:flex;align-items:center;gap:13px}
+.mark{flex:none;width:34px;height:34px}
+h1{margin:0;font-family:var(--syne);font-size:31px;font-weight:800;letter-spacing:-.01em;line-height:1.05}
+.tagline{font-family:var(--syne);font-size:14px;font-weight:600;color:var(--ink-2);margin-top:7px}
+.topright{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.builtby{font-family:var(--syne);font-size:9.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3)}
+.builtby a{color:var(--ink-2)}
+.pill{display:inline-flex;align-items:center;gap:8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:20px;padding:7px 14px;
+  font-family:var(--syne);font-size:11.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-2)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--mint);flex:none}
+
+/* hero strip -------------------------------------------------------------- */
+.herorow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+.hcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.hcard .k{font-family:var(--syne);font-size:11px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3)}
+.hcard .v{font-size:29px;font-weight:700;letter-spacing:-.02em;margin-top:6px;
+  font-variant-numeric:tabular-nums;line-height:1.05}
+.hcard .s{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-top:5px}
+.hcard.accent{border-color:rgba(249,115,22,.32);
+  background:linear-gradient(180deg,rgba(249,115,22,.09),var(--panel))}
 
 /* sections ---------------------------------------------------------------- */
-section{margin:38px 0}
-h2{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:var(--ink-2);
-   margin:0 0 3px;font-weight:600}
-h2 .rule{display:block;height:2px;width:26px;background:var(--accent);margin-top:8px;border-radius:1px}
-.note{color:var(--ink-3);font-size:12.5px;margin:10px 0 16px;max-width:74ch}
+section{margin:42px 0 0}
+.shead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.shead h2{margin:0;font-family:var(--syne);font-size:17px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
+.shead .asof{font-family:var(--syne);font-size:12px;font-weight:600;color:var(--ink-3)}
+.rule{display:block;height:2px;width:34px;background:var(--orange);border-radius:1px;margin:9px 0 0}
+.note{color:var(--ink-2);font-size:13px;margin:13px 0 16px;max-width:78ch}
 
 /* tiles ------------------------------------------------------------------- */
-.grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.g8{grid-template-columns:repeat(8,1fr)}
-.g5{grid-template-columns:repeat(5,1fr)}
+.tiles{display:grid;gap:12px}
+.g8{grid-template-columns:repeat(4,1fr)}
 .g4{grid-template-columns:repeat(4,1fr)}
-.tile{background:var(--panel);padding:13px 14px 14px;min-width:0}
-.tile .k{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.075em;
-         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .v{font-size:19px;font-weight:600;letter-spacing:-.02em;margin-top:5px;
-         font-variant-numeric:tabular-nums}
-.tile .s{font-size:11.5px;color:var(--ink-3);margin-top:3px;font-variant-numeric:tabular-nums}
-.up{color:var(--good)} .dn{color:var(--bad)}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;min-width:0}
+.tile .k{font-family:var(--syne);font-size:11px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);line-height:1.3}
+.tile .v{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-top:6px;
+  font-variant-numeric:tabular-nums;line-height:1.15}
+.tile .s{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-top:4px;
+  font-variant-numeric:tabular-nums}
+.up{color:var(--mint)} .dn{color:var(--neg)}
 
-/* cards / charts ---------------------------------------------------------- */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:18px 18px 12px}
-.card-hd{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin-bottom:4px}
-.card-hd h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em}
-.card-hd .sub{margin:0}
-.ctrls{display:flex;gap:6px;flex-wrap:wrap}
-.ctrls .grp{display:flex;background:var(--panel-2);border:1px solid var(--line-2);border-radius:7px;overflow:hidden}
-button.seg{background:none;border:0;color:var(--ink-2);font:inherit;font-size:11.5px;
-  padding:5px 10px;cursor:pointer;font-variant-numeric:tabular-nums}
+/* panels / charts --------------------------------------------------------- */
+.panel{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:17px 19px 13px}
+.panel-hd{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;justify-content:space-between}
+.panel-hd h3{margin:0;font-family:var(--syne);font-size:14px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.panel-hd .sub{font-size:12.5px;font-weight:600;color:var(--ink-3);margin-top:5px}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grp{display:flex;background:var(--panel);border:1px solid var(--line-3);border-radius:20px;overflow:hidden}
+button.seg{background:none;border:0;color:var(--ink-2);font-family:var(--syne);font-size:12px;
+  font-weight:700;padding:6px 12px;cursor:pointer;font-variant-numeric:tabular-nums}
 button.seg+button.seg{border-left:1px solid var(--line-2)}
 button.seg:hover{color:var(--ink)}
-button.seg[aria-pressed=true]{background:var(--accent);color:#150c00;font-weight:600}
-button.seg:focus-visible,.dateinp:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.datectl{display:flex;align-items:center;gap:7px;background:var(--panel-2);
-  border:1px solid var(--line-2);border-radius:7px;padding:0 9px 0 10px}
-.datectl span{font-size:10.5px;text-transform:uppercase;letter-spacing:.075em;color:var(--ink-3)}
-.dateinp{background:none;border:0;color:var(--ink);font:inherit;font-size:11.5px;
-  font-family:var(--mono);padding:5px 0;cursor:pointer;min-width:104px}
-.dateinp::-webkit-calendar-picker-indicator{filter:invert(.65);cursor:pointer}
-.dateinp:hover{color:var(--accent)}
-.legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 2px;font-size:12.5px;color:var(--ink-2)}
-.legend .it{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
-.legend .it[aria-pressed=false]{opacity:.35}
+button.seg[aria-pressed=true]{background:var(--orange);color:#170a01}
+.datectl{display:flex;align-items:center;gap:8px;background:var(--panel);
+  border:1px solid var(--line-3);border-radius:20px;padding:0 12px 0 13px}
+.datectl span{font-family:var(--syne);font-size:11px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3)}
+.dateinp{background:none;border:0;color:var(--ink);font-family:var(--mono);font-size:11.5px;
+  padding:6px 0;cursor:pointer;min-width:104px}
+.dateinp::-webkit-calendar-picker-indicator{filter:invert(.62) sepia(.2);cursor:pointer}
+.dateinp:hover{color:var(--orange)}
+.legend{display:flex;gap:17px;flex-wrap:wrap;margin:14px 0 2px;font-size:12.5px;
+  font-weight:600;color:var(--ink-2)}
+.legend .it{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;border-radius:4px}
+.legend .it[aria-pressed=false]{opacity:.34}
 .legend svg{flex:none}
-.legend .val{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
 .plot{position:relative;width:100%}
 .plot svg{display:block;width:100%;height:auto;overflow:visible}
-.gridline{stroke:var(--line);stroke-width:1;shape-rendering:crispEdges}
+.gridline{stroke:var(--line-2);stroke-width:1;shape-rendering:crispEdges}
 .axis-t{fill:var(--ink-3);font-size:11px;font-family:var(--mono)}
-.tip{position:absolute;pointer-events:none;background:#000;border:1px solid var(--line-2);
-  border-radius:7px;padding:9px 11px;font-size:12px;min-width:180px;opacity:0;transition:opacity .1s;
-  box-shadow:0 8px 26px rgba(0,0,0,.6);z-index:5}
-.tip .d{color:var(--ink-3);font-size:11px;margin-bottom:6px;font-family:var(--mono)}
-.tip .r{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:3px}
-.tip .r .nm{display:flex;align-items:center;gap:7px;color:var(--ink-2)}
+.dlrow{display:flex;justify-content:flex-end;margin-top:6px}
+button.dlbtn{background:var(--panel);border:1px solid var(--line-3);border-radius:9px;
+  color:var(--ink-2);font-family:var(--syne);font-size:10.5px;font-weight:700;
+  padding:4px 10px;cursor:pointer}
+button.dlbtn:hover{color:var(--orange);border-color:rgba(249,115,22,.4)}
+button.dlbtn[disabled]{opacity:.5;cursor:default}
+.tip{position:absolute;pointer-events:none;background:#050d1e;border:1px solid var(--line-3);
+  border-radius:10px;padding:10px 12px;font-size:12px;min-width:190px;opacity:0;
+  transition:opacity .1s;box-shadow:0 10px 30px rgba(0,0,0,.65);z-index:5}
+.tip .d{color:var(--ink-3);font-size:11px;margin-bottom:7px;font-family:var(--mono)}
+.tip .r{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-top:4px}
+.tip .r .nm{display:flex;align-items:center;gap:8px;color:var(--ink-2)}
 .tip .r .vv{font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--ink)}
-.sw{width:11px;height:3px;border-radius:2px;flex:none}
+.sw{width:12px;height:3px;border-radius:2px;flex:none}
 
 /* band readout ------------------------------------------------------------ */
-.gauge{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-.gauge .bar{position:relative;height:9px;border-radius:5px;background:linear-gradient(90deg,#1d1d1d,var(--band),#1d1d1d);
-  border:1px solid var(--line-2)}
-.gauge .mk{position:absolute;top:-5px;width:3px;height:17px;background:var(--accent);border-radius:2px}
-.gauge .ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-top:8px}
+.gauge{margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2)}
+.gauge .bar{position:relative;height:9px;border-radius:5px;
+  background:linear-gradient(90deg,rgba(13,26,52,.9),var(--band),rgba(13,26,52,.9));
+  border:1px solid var(--line-3)}
+.gauge .mk{position:absolute;top:-5px;width:3px;height:17px;background:var(--orange);border-radius:2px}
+.gauge .ends{display:flex;justify-content:space-between;gap:12px;font-size:12px;
+  font-weight:600;color:var(--ink-3);margin-top:9px;flex-wrap:wrap}
 
 /* tables ------------------------------------------------------------------ */
-.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
-table{border-collapse:collapse;width:100%;font-size:13px;background:var(--panel)}
-th,td{padding:9px 13px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
-th{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);
-   font-weight:600;background:var(--panel-2);position:sticky;top:0}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:10px 14px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-2)}
+th{font-family:var(--syne);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+   color:var(--ink-3);font-weight:700;background:rgba(13,26,52,.75);position:sticky;top:0}
 th:first-child,td:first-child{text-align:left}
 tbody tr:last-child td{border-bottom:0}
-tbody tr:hover td{background:var(--panel-2)}
+tbody tr:hover td{background:rgba(143,165,212,.05)}
 td.n{font-variant-numeric:tabular-nums;font-family:var(--mono)}
 
-details.meth{border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:0}
-details.meth>summary{padding:14px 18px;cursor:pointer;font-size:13px;font-weight:600;list-style:none}
+details.meth{border:1px solid var(--line);border-radius:14px;background:var(--panel-2)}
+details.meth>summary{padding:15px 19px;cursor:pointer;font-family:var(--syne);font-size:13px;
+  font-weight:700;list-style:none}
 details.meth>summary::-webkit-details-marker{display:none}
-details.meth>summary::before{content:"▸ ";color:var(--accent)}
+details.meth>summary::before{content:"▸ ";color:var(--orange)}
 details.meth[open]>summary::before{content:"▾ "}
-.meth-body{padding:0 18px 18px;font-size:13px;color:var(--ink-2);max-width:88ch}
-.meth-body h4{color:var(--ink);font-size:12.5px;margin:16px 0 5px}
-.meth-body p{margin:6px 0}
-.meth-body code{font-family:var(--mono);font-size:12px;background:var(--panel-2);
+.meth-body{padding:0 19px 19px;font-size:13px;color:var(--ink-2);max-width:90ch}
+.meth-body h4{color:var(--ink);font-family:var(--syne);font-size:12px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;margin:18px 0 6px}
+.meth-body p{margin:7px 0}
+.meth-body code{font-family:var(--mono);font-size:12px;background:rgba(143,165,212,.1);
   padding:1px 5px;border-radius:4px;color:var(--ink)}
-.meth-body ul{margin:6px 0;padding-left:18px}
-.meth-body li{margin:3px 0}
+.meth-body ul{margin:7px 0;padding-left:19px}
+.meth-body li{margin:4px 0}
+.meth-body b{color:var(--ink)}
 
-footer{border-top:1px solid var(--line);margin-top:44px;padding-top:20px;
-  font-size:11.5px;color:var(--ink-3);line-height:1.65;max-width:96ch}
-.err{border:1px solid var(--bad);border-radius:9px;padding:16px;color:var(--ink-2);font-size:13px}
+footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
+  font-size:11.5px;color:var(--ink-3);line-height:1.7;max-width:100ch}
+.err{border:1px solid var(--neg);border-radius:14px;padding:18px;color:var(--ink-2);font-size:13px}
 
-.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-@media (max-width:1000px){
-  .g8{grid-template-columns:repeat(4,1fr)} .g5{grid-template-columns:repeat(3,1fr)}
+@media (max-width:1080px){
+  .herorow{grid-template-columns:repeat(2,1fr)}
+  .g8,.g4{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:760px){
+  .wrap{padding:0 14px 60px}
+  .herorow,.g8,.g4{grid-template-columns:repeat(2,1fr)}
+  h1{font-size:25px} .hcard .v{font-size:25px}
   .trio{grid-template-columns:1fr}
 }
-@media (max-width:640px){
-  .wrap{padding:0 14px 60px}
-  .g8,.g5,.g4{grid-template-columns:repeat(2,1fr)}
-  .hero .big{font-size:31px} h1{font-size:22px}
-  .hero .side{border-left:0;padding-left:0}
-}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:1080px){ .trio{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="hdr">
-      <div>
-        <h1>State of DFDV<span class="dot">.</span></h1>
-        <div class="sub" id="asof">Loading…</div>
+    <div class="top">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
+          <g fill="var(--orange)">
+            <rect x="4"  y="7"  width="26" height="5" rx="2.5" transform="skewX(-12)"/>
+            <rect x="4"  y="15" width="26" height="5" rx="2.5" transform="skewX(-12)" opacity=".72"/>
+            <rect x="4"  y="23" width="26" height="5" rx="2.5" transform="skewX(-12)" opacity=".46"/>
+          </g>
+        </svg>
+        <div>
+          <h1>State of DFDV</h1>
+          <div class="tagline" id="tagline">Loading…</div>
+        </div>
       </div>
-      <div class="hero" id="hero"></div>
+      <div class="topright">
+        <div class="builtby">Built by <a href="https://defidevcorp.com">DeFi Development Corp.</a></div>
+        <div class="pill" id="pill"><span class="dot"></span><span id="pilltxt">Loading</span></div>
+      </div>
     </div>
+    <div class="herorow" id="hero"></div>
   </header>
   <main id="main"></main>
   <footer id="foot"></footer>
@@ -219,7 +294,6 @@ const dateLabel = iso => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 };
 
-/* --- tiles --------------------------------------------------------------- */
 function tile(k, v, sub, klass) {
   return el('div', { class: 'tile' }, [
     el('div', { class: 'k', title: k }, k),
@@ -227,21 +301,121 @@ function tile(k, v, sub, klass) {
     sub ? el('div', { class: 's' }, sub) : null,
   ]);
 }
-function tileGrid(cols, items) {
-  return el('div', { class: 'grid g' + cols }, items);
+const tileGrid = (cols, items) => el('div', { class: 'tiles g' + cols }, items);
+const sectionHead = (title, asof) => el('div', {}, [
+  el('div', { class: 'shead' }, [el('h2', {}, title), asof ? el('div', { class: 'asof' }, asof) : null]),
+  el('span', { class: 'rule' }),
+]);
+
+/* =========================================================================
+   PNG export.
+
+   A downloaded chart travels alone, so the export is not a screenshot of the
+   plot - it rebuilds the figure with its own title, legend, source line and
+   ground. CSS classes and custom properties do not survive serialisation, so
+   every paint is copied off getComputedStyle onto the clone first.
+   ========================================================================= */
+const PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
+  'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor'];
+
+function inlinePaint(src, dst) {
+  const cs = getComputedStyle(src);
+  let css = '';
+  for (const p of PAINT) {
+    const v = cs.getPropertyValue(p);
+    if (v && v !== 'none' || p === 'fill' || p === 'stroke') css += `${p}:${v};`;
+  }
+  dst.setAttribute('style', css);
+  const s = src.children, d = dst.children;
+  for (let i = 0; i < s.length; i++) inlinePaint(s[i], d[i]);
+}
+
+function exportPNG(svg, meta) {
+  const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const box = svg.getBoundingClientRect();
+  const W = Math.max(640, Math.round(box.width));
+  const H = Math.round(box.height) || 400;
+  const PAD = 26;
+  const legend = meta.legend || [];
+  const HEAD = 62 + (legend.length ? 26 : 0);
+  const FOOT = 34;
+  const outW = W + PAD * 2, outH = HEAD + H + FOOT;
+
+  const out = svgEl('svg', {
+    xmlns: NS, width: outW, height: outH, viewBox: `0 0 ${outW} ${outH}`,
+  });
+  const SANS = '"Syne",Helvetica,Arial,sans-serif';
+  const MONO = 'ui-monospace,Menlo,Consolas,monospace';
+  out.append(svgEl('rect', { x: 0, y: 0, width: outW, height: outH, fill: cssVar('--bg') || '#030815' }));
+
+  const text = (x, y, s, o = {}) => {
+    const t = svgEl('text', {
+      x, y, fill: o.fill || cssVar('--ink'), 'font-size': o.size || 13,
+      'font-family': o.font || SANS, 'font-weight': o.weight || 700,
+      'text-anchor': o.anchor || 'start', 'letter-spacing': o.ls || null,
+    });
+    t.textContent = s;
+    return t;
+  };
+
+  out.append(text(PAD, 30, meta.title, { size: 16, ls: '1.3' }));
+  if (meta.subtitle) out.append(text(PAD, 49, meta.subtitle, { size: 12, weight: 600, fill: cssVar('--ink-3') }));
+  out.append(text(outW - PAD, 30, 'STATE OF DFDV', { size: 12, anchor: 'end', fill: cssVar('--orange'), ls: '1.6' }));
+
+  let lx = PAD;
+  for (const s of legend) {
+    out.append(svgEl('line', {
+      x1: lx, x2: lx + 20, y1: HEAD - 16, y2: HEAD - 16, stroke: s.color,
+      'stroke-width': s.width || 2, 'stroke-dasharray': s.dash || null, 'stroke-linecap': 'round',
+    }));
+    out.append(text(lx + 26, HEAD - 12, s.label, { size: 11.5, weight: 600, fill: cssVar('--ink-2') }));
+    lx += 26 + s.label.length * 6.4 + 20;
+  }
+
+  const clone = svg.cloneNode(true);
+  inlinePaint(svg, clone);
+  clone.setAttribute('width', W);
+  clone.setAttribute('height', H);
+  const g = svgEl('g', { transform: `translate(${PAD},${HEAD})` });
+  g.append(clone);
+  out.append(g);
+
+  out.append(text(PAD, outH - 12, meta.footer, { size: 10.5, weight: 600, font: MONO, fill: cssVar('--ink-3') }));
+
+  const str = new XMLSerializer().serializeToString(out);
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const c = document.createElement('canvas');
+    c.width = outW * scale; c.height = outH * scale;
+    const ctx = c.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    c.toBlob(b => {
+      if (!b) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = meta.filename;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }, 'image/png');
+  };
+  img.onerror = () => alert('Could not render the chart to PNG in this browser.');
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(str);
 }
 
 /* =========================================================================
    Line chart
    ========================================================================= */
 function lineChart(opts) {
-  // opts: {dates, series:[{key,label,color,dash,width,values}], bands:[{lo,hi,label}],
-  //        fmt, log, height, yTitle, baseline}
   const host = el('div', { class: 'plot' });
   const tip = el('div', { class: 'tip' });
   host.append(tip);
 
   const state = { range: opts.defaultRange || 'max', log: !!opts.log, off: new Set(), from: null };
+  const api = { host, state, draw, lastDrawn: [] };
 
   function slice() {
     const d = opts.dates, n = d.length;
@@ -256,12 +430,12 @@ function lineChart(opts) {
       cut = c.toISOString().slice(0, 10);
     }
     if (!cut) return 0;
-    // Base the window on the last trading day at or BEFORE the anchor, which is the
-    // same convention the return tiles and the comparison table use - otherwise a
-    // YTD chart would start from Jan 2 and disagree with the YTD tile.
+    // Base the window on the last trading day at or BEFORE the anchor, the same
+    // convention the return tiles and the comparison table use - otherwise a YTD
+    // chart would start from Jan 2 and disagree with the YTD tile.
     const i = d.findIndex(x => x > cut);
     const from = i < 0 ? n - 1 : Math.max(0, i - 1);
-    return Math.min(from, Math.max(0, n - 2)); // always leave at least two points to draw
+    return Math.min(from, Math.max(0, n - 2)); // always leave two points to draw
   }
 
   function draw() {
@@ -269,14 +443,11 @@ function lineChart(opts) {
     const dates = opts.dates.slice(from);
     const N = dates.length;
     // Match the viewBox to the rendered pixel width so 1 unit == 1 px. A fixed
-    // viewBox would shrink all the type in the narrow small-multiple cards.
+    // viewBox would shrink all the type in the narrow small-multiple panels.
     const W = Math.max(320, Math.round(host.clientWidth || 1000)), H = opts.height || 400;
-    const M = { t: 14, r: 62, b: 26, l: 52 };
+    const M = { t: 14, r: 62, b: 26, l: 54 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
 
-    // Index series get rebased to 100 at the first visible point, so the chart always
-    // answers "what happened over the window you're looking at". Level series
-    // (leverage in x, short interest in %) are plotted as-is.
     const active = opts.series.filter(s => !state.off.has(s.key));
     const ok = v => v !== null && v !== undefined && isFinite(v);
     // Divisor for a series over this window: its own value on the first visible day.
@@ -302,9 +473,10 @@ function lineChart(opts) {
       return raw.map(v => ok(v) ? v / base * 100 : null);
     };
     const drawn = active.map(s => ({ ...s, pts: reb(s) }));
+    api.lastDrawn = drawn;
+    api.lastDates = dates;
     const bands = (opts.bands || []).map(b => ({
-      ...b,
-      lo: reb({ values: b.loValues }), hi: reb({ values: b.hiValues }),
+      ...b, lo: reb({ values: b.loValues }), hi: reb({ values: b.hiValues }),
     }));
 
     let vals = [];
@@ -312,13 +484,12 @@ function lineChart(opts) {
     for (const b of bands) vals = vals.concat(b.lo.filter(v => v !== null), b.hi.filter(v => v !== null));
     if (!vals.length) return;
     let lo = Math.min(...vals), hi = Math.max(...vals);
-    if (state.log) { lo = Math.max(lo, 0.01); }
+    if (state.log) lo = Math.max(lo, 0.01);
     const padF = state.log ? 1.09 : 0.06;
     if (state.log) { lo /= padF; hi *= padF; }
     else {
       const p = (hi - lo) * padF || 1;
-      const floorAtZero = vals.every(v => v >= 0) && lo - p < 0;
-      lo = floorAtZero ? 0 : lo - p;
+      lo = (vals.every(v => v >= 0) && lo - p < 0) ? 0 : lo - p;
       hi += p;
     }
 
@@ -333,7 +504,6 @@ function lineChart(opts) {
 
     const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.aria || 'chart' });
 
-    // y gridlines
     const ticks = [];
     if (state.log) {
       const a = Math.log10(lo), b = Math.log10(hi);
@@ -343,7 +513,7 @@ function lineChart(opts) {
           if (v >= lo && v <= hi) ticks.push(v);
         }
     } else {
-      // Scale the tick count to the plot height - a 240px chart cannot carry the
+      // Scale the tick count to the plot height - a 240px panel cannot carry the
       // same number of gridlines as a 420px one without the labels colliding.
       const want = Math.max(3, Math.min(6, Math.round(ph / 55)));
       const step = niceStep((hi - lo) / want);
@@ -356,23 +526,21 @@ function lineChart(opts) {
       tx.textContent = opts.fmtAxis ? opts.fmtAxis(t) : nf(t, 0);
       svg.append(tx);
     }
-    // baseline (e.g. 100 = flat, or 0 for a gap chart)
     if (opts.baseline !== undefined && opts.baseline >= lo && opts.baseline <= hi) {
       svg.append(svgEl('line', {
         x1: M.l, x2: M.l + pw, y1: Y(opts.baseline), y2: Y(opts.baseline),
-        stroke: 'var(--line-2)', 'stroke-width': 1.5, 'shape-rendering': 'crispEdges',
+        stroke: 'var(--line-3)', 'stroke-width': 1.5, 'shape-rendering': 'crispEdges',
       }));
     }
     // x ticks at month starts, thinned to a minimum pixel spacing so narrow
-    // small-multiple cards don't end up with overlapping month labels.
+    // panels don't end up with overlapping month labels.
     let lastMonth = '', lastX = -1e9;
-    const MIN_X_GAP = 52;
     dates.forEach((d, i) => {
       const m = d.slice(0, 7);
       if (m === lastMonth) return;
       lastMonth = m;
       const x = X(i);
-      if (x - lastX < MIN_X_GAP) return;
+      if (x - lastX < 52) return;
       lastX = x;
       svg.append(svgEl('line', { class: 'gridline', x1: x, x2: x, y1: M.t, y2: M.t + ph }));
       const tx = svgEl('text', { class: 'axis-t', x, y: H - 8, 'text-anchor': 'middle' });
@@ -382,7 +550,6 @@ function lineChart(opts) {
       svg.append(tx);
     });
 
-    // expected band (drawn under the lines)
     for (const b of bands) {
       let up = '', dn = '';
       for (let i = 0; i < N; i++) if (b.hi[i] !== null) up += `${up ? 'L' : 'M'}${X(i)},${Y(b.hi[i])}`;
@@ -398,7 +565,6 @@ function lineChart(opts) {
       }
     }
 
-    // series lines
     const endLabels = [];
     for (const s of drawn) {
       let p = '', open = false;
@@ -410,7 +576,6 @@ function lineChart(opts) {
         d: p, fill: 'none', stroke: s.color, 'stroke-width': s.width || 2,
         'stroke-dasharray': s.dash || null, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
       }));
-      // selective direct label: endpoint only
       const li = s.pts.map((v, i) => v === null ? -1 : i).filter(i => i >= 0).pop();
       if (li !== undefined && li >= 0) {
         endLabels.push({
@@ -431,13 +596,12 @@ function lineChart(opts) {
     for (const l of endLabels) {
       const t = svgEl('text', {
         x: l.x, y: Math.max(M.t + 4, l.y) + 4, fill: l.color,
-        'font-size': 11.5, 'font-family': 'var(--mono)', 'font-weight': 600,
+        'font-size': 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
       });
       t.textContent = l.text;
       svg.append(t);
     }
 
-    // crosshair
     const cross = svgEl('line', {
       y1: M.t, y2: M.t + ph, stroke: 'var(--ink-3)', 'stroke-width': 1, opacity: 0,
       'shape-rendering': 'crispEdges',
@@ -481,10 +645,9 @@ function lineChart(opts) {
 
     host.querySelector('svg')?.remove();
     host.append(svg);
-    if (opts.onDraw) opts.onDraw({ from, dates, drawn });
   }
 
-  return { host, draw, state };
+  return api;
 }
 function niceStep(x) {
   const e = Math.pow(10, Math.floor(Math.log10(Math.abs(x) || 1)));
@@ -535,7 +698,6 @@ function rangeControls(chart, dates) {
       chart.state.range = 'custom';
       chart.state.from = dateInput.value;
     } else {
-      // Cleared the field - fall back to the full history.
       chart.state.range = 'max';
       chart.state.from = null;
       btns[btns.length - 1].setAttribute('aria-pressed', 'true');
@@ -549,7 +711,33 @@ function rangeControls(chart, dates) {
   ]);
 }
 
-function legendFor(chart, series, values) {
+const RANGE_NAME = { '1m': 'past month', '3m': 'past 3 months', '6m': 'past 6 months',
+  ytd: 'year to date', '1y': 'past year', max: 'since the first SOL purchase' };
+
+/* One "⤓ PNG" control per chart, matching the pattern on stateofsol.com. */
+function dlRow(chart, title, filenameSlug, sources) {
+  const b = el('button', { class: 'dlbtn', type: 'button', title: 'Download this chart as a PNG' }, '⤓ PNG');
+  b.addEventListener('click', () => {
+    const svg = chart.host.querySelector('svg');
+    if (!svg) return;
+    const st = chart.state;
+    const window = st.range === 'custom' ? `from ${dateLabel(st.from)}` : RANGE_NAME[st.range] || '';
+    const dates = chart.lastDates || [];
+    exportPNG(svg, {
+      title,
+      subtitle: `${window}${st.log ? ' · log scale' : ''}${dates.length ? ` · ${dateLabel(dates[0])} – ${dateLabel(dates[dates.length - 1])}` : ''}`,
+      legend: (chart.lastDrawn || []).map(s => ({
+        label: s.label, color: getComputedStyle(document.documentElement).getPropertyValue(s.color.replace(/var\(|\)/g, '')).trim() || s.color,
+        dash: s.dash, width: s.width,
+      })),
+      footer: sources,
+      filename: `state-of-dfdv-${filenameSlug}-${(dates[dates.length - 1] || '').replace(/-/g, '')}.png`,
+    });
+  });
+  return el('div', { class: 'dlrow' }, b);
+}
+
+function legendFor(chart, series) {
   const box = el('div', { class: 'legend' });
   for (const s of series) {
     const it = el('div', { class: 'it', role: 'button', tabindex: '0', 'aria-pressed': 'true' });
@@ -559,7 +747,6 @@ function legendFor(chart, series, values) {
       'stroke-dasharray': s.dash || null, 'stroke-linecap': 'round',
     }));
     it.append(sw, el('span', {}, s.label));
-    if (values && values[s.key] !== undefined) it.append(el('span', { class: 'val' }, values[s.key]));
     const toggle = () => {
       const on = it.getAttribute('aria-pressed') === 'true';
       it.setAttribute('aria-pressed', String(!on));
@@ -577,92 +764,92 @@ function legendFor(chart, series, values) {
    Page
    ========================================================================= */
 const RANGES = [['1m', '1M'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD'], ['1y', '1Y'], ['max', 'Max']];
+const SRC_LINE = 'Sources: defidevcorp.com · Nasdaq · Hyperliquid — not investment advice';
 
 function render(D) {
-  const h = D.headline, S = D.series, M = D.methodology;
+  const h = D.headline, S = D.series, M = D.methodology, L = D.leverage_stats, R = D.returns;
 
-  /* header ---------------------------------------------------------------- */
-  $('#asof').innerHTML =
-    `DeFi Development Corp · Nasdaq: DFDV · prices through ${dateLabel(D.as_of.price_date)} ` +
-    `· treasury data ${dateLabel((D.as_of.dfdv_api || '').slice(0, 10))}`;
+  $('#tagline').textContent = 'How the Solana treasury strategy is actually performing.';
+  $('#pilltxt').textContent = 'Updated ' + dateLabel((D.as_of.dfdv_api || '').slice(0, 10));
+
   $('#hero').append(
-    el('div', {}, [
-      el('div', { class: 'hero', style: 'gap:10px' }, [
-        el('span', { class: 'big num' }, usd(h.price)),
-        el('span', { class: 'chg num ' + cls(h.change_pct) }, pct(h.change_pct)),
-      ]),
-      el('div', { class: 'sub' }, `Market cap ${compact(h.market_cap, '$')} · ${int(h.shares_outstanding)} shares`),
+    el('div', { class: 'hcard accent' }, [
+      el('div', { class: 'k' }, 'DFDV Price'),
+      el('div', { class: 'v' }, usd(h.price)),
+      el('div', { class: 's ' + cls(h.change_pct) }, pct(h.change_pct) + ' · close ' + dateLabel(D.as_of.price_date)),
     ]),
-    el('div', { class: 'side' }, [
-      el('div', { class: 'k' }, 'Since treasury strategy'),
-      el('div', { class: 'v num ' + cls(D.returns.inception) }, pct(D.returns.inception, 0)),
-      el('div', { class: 'sub' }, `from ${dateLabel(M.inception)}`),
+    el('div', { class: 'hcard' }, [
+      el('div', { class: 'k' }, 'Since Treasury Strategy'),
+      el('div', { class: 'v ' + cls(R.inception) }, pct(R.inception, 0)),
+      el('div', { class: 's' }, 'from ' + dateLabel(M.inception)),
     ]),
-    el('div', { class: 'side' }, [
-      el('div', { class: 'k' }, 'Levered SOL exposure'),
-      el('div', { class: 'v num' }, nf(h.leverage, 2) + '×'),
-      el('div', { class: 'sub' }, `per $1 of DFDV`),
+    el('div', { class: 'hcard' }, [
+      el('div', { class: 'k' }, 'Levered SOL Exposure'),
+      el('div', { class: 'v' }, nf(h.leverage, 2) + '×'),
+      el('div', { class: 's' }, 'of SOL per $1 of DFDV'),
+    ]),
+    el('div', { class: 'hcard' }, [
+      el('div', { class: 'k' }, 'SOL Held'),
+      el('div', { class: 'v' }, compact(h.sol_count)),
+      el('div', { class: 's' }, compact(h.sol_nav, '$') + ' at ' + usd(h.sol_price)),
     ]),
   );
 
   const main = $('#main');
 
   /* 1. price performance -------------------------------------------------- */
-  const R = D.returns;
   main.append(el('section', {}, [
-    el('h2', { html: 'Price performance<span class="rule"></span>' }),
+    sectionHead('Price Performance', 'close of ' + dateLabel(D.as_of.price_date)),
     el('div', { class: 'note' },
-      `Total return on the DFDV share price. "Since treasury strategy" runs from the ${dateLabel(M.inception)} close — ` +
+      `Total return on the DFDV share price. "Since strategy" runs from the ${dateLabel(M.inception)} close — ` +
       `the day the board adopted the digital-asset treasury policy, three days before it was announced. ` +
       `That is the same basis DFDV's own dashboard uses.`),
     tileGrid(8, [
-      tile('1 day', pct(R['1d']), null, cls(R['1d'])),
-      tile('1 week', pct(R['1w']), null, cls(R['1w'])),
-      tile('1 month', pct(R['1m']), null, cls(R['1m'])),
-      tile('3 month', pct(R['3m']), null, cls(R['3m'])),
-      tile('6 month', pct(R['6m']), null, cls(R['6m'])),
-      tile('YTD', pct(R.ytd), null, cls(R.ytd)),
-      tile('1 year', pct(R['1y']), null, cls(R['1y'])),
-      tile('Since strategy', pct(R.inception, 0), dateLabel(M.inception), cls(R.inception)),
+      tile('1 Day', pct(R['1d']), null, cls(R['1d'])),
+      tile('1 Week', pct(R['1w']), null, cls(R['1w'])),
+      tile('1 Month', pct(R['1m']), null, cls(R['1m'])),
+      tile('3 Month', pct(R['3m']), null, cls(R['3m'])),
+      tile('6 Month', pct(R['6m']), null, cls(R['6m'])),
+      tile('Year to Date', pct(R.ytd), null, cls(R.ytd)),
+      tile('1 Year', pct(R['1y']), null, cls(R['1y'])),
+      tile('Since Strategy', pct(R.inception, 0), dateLabel(M.inception), cls(R.inception)),
     ]),
   ]));
 
   /* 2. treasury & leverage ------------------------------------------------ */
-  const L = D.leverage_stats;
   main.append(el('section', {}, [
-    el('h2', { html: 'Treasury &amp; leverage<span class="rule"></span>' }),
+    sectionHead('Treasury & Leverage'),
     el('div', { class: 'note' },
       `SOL per share (SPS) is the treasury metric DFDV manages to. mNAV is market cap ÷ the gross value of the SOL ` +
       `it holds; levered SOL exposure is its reciprocal — the dollars of SOL working behind each dollar of DFDV.`),
     tileGrid(8, [
-      tile('SOL held', int(h.sol_count), compact(h.sol_nav, '$') + ' at ' + usd(h.sol_price, 2)),
-      tile('SOL per share', nf(h.sps, 5), 'SPS'),
-      tile('NAV / share', usd(h.nav_per_share), 'gross SOL NAV'),
-      tile('Net NAV / share', usd(h.net_nav_per_share), 'after debt'),
+      tile('SOL Held', int(h.sol_count), compact(h.sol_nav, '$') + ' at ' + usd(h.sol_price)),
+      tile('SOL Per Share', nf(h.sps, 5), 'SPS'),
+      tile('NAV / Share', usd(h.nav_per_share), 'gross SOL NAV'),
+      tile('Net NAV / Share', usd(h.net_nav_per_share), 'after debt'),
       tile('mNAV', nf(h.mnav, 3) + '×', h.mnav < 1 ? 'discount to SOL' : 'premium to SOL'),
-      tile('SOL exposure', nf(h.leverage, 2) + '×', `range ${nf(L.min, 2)}–${nf(L.max, 2)}×`),
-      tile('Total debt', compact(h.total_debt, '$'), nf(h.debt_to_mktcap, 2) + '× market cap'),
-      tile('Staking yield', nf(h.staking_apy_pct, 2) + '%', 'implied by dfdvSOL'),
+      tile('SOL Exposure', nf(h.leverage, 2) + '×', `range ${nf(L.min, 2)}–${nf(L.max, 2)}×`),
+      tile('Total Debt', compact(h.total_debt, '$'), nf(h.debt_to_mktcap, 2) + '× market cap'),
+      tile('Staking Yield', nf(h.staking_apy_pct, 2) + '%', 'implied by dfdvSOL'),
     ]),
   ]));
 
   /* 3. market structure --------------------------------------------------- */
   const sh = h.short;
   main.append(el('section', {}, [
-    el('h2', { html: 'Trading &amp; market structure<span class="rule"></span>' }),
+    sectionHead('Trading & Market Structure', 'short interest settled ' + dateLabel(sh.date)),
     el('div', { class: 'note' },
-      `Short interest is reported semi-monthly by FINRA; the latest settlement is ${dateLabel(sh.date)}. ` +
-      `Days to cover uses Nasdaq's average daily volume at that settlement. ` +
-      `Float is ${int(h.float_shares)} shares (${h.float_source}), against ${int(h.shares_outstanding)} outstanding.`),
+      `Short interest is reported semi-monthly by FINRA. Days to cover uses Nasdaq's average daily volume at that ` +
+      `settlement. Float is ${int(h.float_shares)} shares (${h.float_source}), against ${int(h.shares_outstanding)} outstanding.`),
     tileGrid(8, [
       tile('Volume', compact(h.volume), 'latest session'),
-      tile('Avg volume 30d', compact(h.avg_volume_30d), '90d ' + compact(h.avg_volume_90d)),
-      tile('Short interest', compact(sh.shares), pct(sh.change_pct, 1) + ' vs prior', ''),
-      tile('Short % of float', nf(sh.pct_float, 1) + '%', nf(sh.pct_shares_out, 1) + '% of shares out'),
-      tile('Days to cover', nf(sh.days_to_cover, 1), 'at settlement ADV'),
+      tile('Avg Volume 30d', compact(h.avg_volume_30d), '90d ' + compact(h.avg_volume_90d)),
+      tile('Short Interest', compact(sh.shares), pct(sh.change_pct, 1) + ' vs prior'),
+      tile('Short % of Float', nf(sh.pct_float, 1) + '%', nf(sh.pct_shares_out, 1) + '% of shares out'),
+      tile('Days to Cover', nf(sh.days_to_cover, 1), 'at settlement ADV'),
       tile('Options OI', compact(h.options_oi_musd * 1e6, '$'), 'put/call ' + nf(h.put_call_ratio, 2)),
-      tile('Implied vol', nf(h.implied_volatility * 100, 0) + '%', 'realised ' + nf(h.historic_volatility * 100, 0) + '%'),
-      tile('52-week range', h.week52_high_low || '—', `inst. ${nf(h.institutional_pct, 1)}% · insiders ${nf(h.insider_pct, 1)}%`),
+      tile('Implied Vol', nf(h.implied_volatility * 100, 0) + '%', 'realised ' + nf(h.historic_volatility * 100, 0) + '%'),
+      tile('52-Week Range', h.week52_high_low || '—', `inst. ${nf(h.institutional_pct, 1)}% · insiders ${nf(h.insider_pct, 1)}%`),
     ]),
   ]));
 
@@ -679,22 +866,8 @@ function render(D) {
     aria: 'DFDV total return versus SOL spot, a synthetic SOL ETF, actual BSOL, and a 1x SOL perpetual',
     fmtAxis: v => pct(v - 100, 0), fmtTip: v => pct(v - 100, 1),
   });
-  const c1card = el('div', { class: 'card' }, [
-    el('div', { class: 'card-hd' }, [
-      el('div', {}, [
-        el('h3', {}, 'DFDV vs. the other ways to own SOL'),
-        el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
-      ]),
-      el('div', { class: 'ctrls' }, [
-        rangeControls(c1, S.dates),
-        segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c1.state.log = v === 'log'; c1.draw(); }),
-      ]),
-    ]),
-    legendFor(c1, SERIES),
-    c1.host,
-  ]);
   main.append(el('section', {}, [
-    el('h2', { html: 'Historical performance<span class="rule"></span>' }),
+    sectionHead('Historical Performance'),
     el('div', { class: 'note' },
       `Every line is a way of holding the same underlying asset. The synthetic SOL ETF earns the staking yield ` +
       `implied by dfdvSOL (${nf(M.staking_apy_pct, 2)}% annualised) less a ${nf(M.etf_mgmt_fee_pct, 2)}% sponsor fee and ` +
@@ -702,64 +875,126 @@ function render(D) {
       `window because no spot SOL ETF existed before ${dateLabel(M.bsol_inception)}; actual BSOL is spliced in dashed from ` +
       `its launch as a check on the model. The perp is a 1× long paying realised Hyperliquid funding, ` +
       `less a ${nf(M.perp_taker_fee_bps, 1)}bp taker fee at entry.`),
-    c1card,
+    el('div', { class: 'panel' }, [
+      el('div', { class: 'panel-hd' }, [
+        el('div', {}, [
+          el('h3', {}, 'DFDV vs. the other ways to own SOL'),
+          el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
+        ]),
+        el('div', { class: 'ctrls' }, [
+          rangeControls(c1, S.dates),
+          segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c1.state.log = v === 'log'; c1.draw(); }),
+        ]),
+      ]),
+      legendFor(c1, SERIES),
+      c1.host,
+      dlRow(c1, 'DFDV vs. the other ways to own SOL', 'performance', SRC_LINE),
+    ]),
   ]));
 
-  /* 5. expected band ------------------------------------------------------ */
-  const c2SERIES = [{ key: 'dfdv', label: 'DFDV actual', color: 'var(--s-dfdv)', width: 2.5, values: S.dfdv }];
+  /* 5. decomposition + valuation band ------------------------------------- */
+  // Slot order below is the validated categorical order: DFDV, SPS, SOL, mNAV.
+  const DECOMP = [
+    { key: 'dfdv', label: 'DFDV share price', color: 'var(--s-dfdv)', width: 2.5, values: S.dfdv },
+    { key: 'sps', label: 'SOL per share', color: 'var(--s-etf)', values: S.sps },
+    { key: 'sol', label: 'SOL price', color: 'var(--s-sol)', values: S.sol },
+    { key: 'mnav', label: 'mNAV (the multiple)', color: 'var(--s-perp)', values: S.mnav },
+  ];
   const c2 = lineChart({
-    dates: S.dates, series: c2SERIES, log: true, height: 360, defaultRange: 'max',
-    aria: 'DFDV actual return against the expected range implied by its leverage and SOL-per-share growth',
-    bands: [{ loValues: S.band_lo, hiValues: S.band_hi }],
+    dates: S.dates, height: 380, log: true, series: DECOMP,
+    aria: 'DFDV share price decomposed into SOL price, SOL per share, and mNAV',
     fmtAxis: v => pct(v - 100, 0), fmtTip: v => pct(v - 100, 1),
   });
+
+  const c2b = lineChart({
+    dates: S.dates, height: 340, log: true, rebase: false,
+    series: [
+      { key: 'price', label: 'DFDV share price', color: 'var(--s-dfdv)', width: 2.5, values: S.price },
+      { key: 'navps', label: 'NAV per share (SPS × SOL)', color: 'var(--s-etf)', values: S.navps },
+    ],
+    aria: 'DFDV share price against NAV per share and the range implied by its recent mNAV',
+    bands: [{ loValues: S.band_lo, hiValues: S.band_hi }],
+    fmtAxis: v => '$' + nf(v, v < 10 ? 2 : 0), fmtTip: v => usd(v),
+    fmtEnd: v => usd(v),
+  });
+
+  const dc = D.decomposition;
   const posPct = Math.max(0, Math.min(1, D.band_position ?? 0.5)) * 100;
   const inBand = D.band_position >= 0 && D.band_position <= 1;
-  const gauge = el('div', { class: 'gauge' }, [
-    el('div', { class: 'bar' }, [el('div', { class: 'mk', style: `left:calc(${posPct}% - 1.5px)` })]),
-    el('div', { class: 'ends' }, [
-      el('span', {}, `Levered SOL beta only · ${pct(D.compare.band_lo.treasury, 0)}`),
-      el('span', { style: 'color:var(--accent);font-weight:600' },
-        inBand ? `DFDV at ${nf(D.band_position * 100, 0)}% of band` : 'DFDV outside band'),
-      el('span', {}, `+ full SPS growth · ${pct(D.compare.band_hi.treasury, 0)}`),
-    ]),
-  ]);
+
   main.append(el('section', {}, [
-    el('h2', { html: 'Actual vs. expected, given leverage<span class="rule"></span>' }),
+    sectionHead('Actual vs. Expected'),
     el('div', { class: 'note' },
-      `The shaded band is what DFDV's own leverage implies it should have done. Its floor credits leverage only — ` +
-      `each day's SOL move times the prior day's levered SOL exposure, which has averaged ${nf(L.median, 2)}× and ranged ` +
-      `${nf(L.min, 2)}–${nf(L.max, 2)}×. Its ceiling adds the full SOL Boost formula's SPS-growth term. The truth sits ` +
-      `between the two, because SPS growth bought with debt is not accretive to equity the moment it happens. ` +
-      `DFDV inside the band means the stock is tracking its leverage; below the floor or above the ceiling means it is not.`),
-    el('div', { class: 'card' }, [
-      el('div', { class: 'card-hd' }, [
+      `DFDV's share price satisfies an exact identity: price = mNAV × SOL per share × SOL price. So the return ` +
+      `factors into exactly three drivers with nothing modelled and no leverage assumption — the SOL market, the ` +
+      `treasury DFDV built, and the multiple the market pays for it. Since the first purchase those have been ` +
+      `${nf(dc.sol, 2)}× × ${nf(dc.sps, 2)}× × ${nf(dc.mnav, 3)}× = ${nf(dc.product, 3)}×, against an actual ` +
+      `${nf(dc.dfdv, 3)}×. The treasury did its job; the multiple is where the return went.`),
+    el('div', { class: 'panel' }, [
+      el('div', { class: 'panel-hd' }, [
         el('div', {}, [
-          el('h3', {}, 'DFDV against its leverage-implied range'),
-          el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
+          el('h3', {}, 'Where the return came from'),
+          el('div', { class: 'sub' }, 'The three lines below DFDV multiply to it, exactly, in any window'),
         ]),
         el('div', { class: 'ctrls' }, [
           rangeControls(c2, S.dates),
           segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c2.state.log = v === 'log'; c2.draw(); }),
         ]),
       ]),
-      el('div', { class: 'legend' }, [
-        el('div', { class: 'it', 'aria-pressed': 'true' }, [
-          (() => { const s = svgEl('svg', { width: 22, height: 10 }); s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--s-dfdv)', 'stroke-width': 2.5, 'stroke-linecap': 'round' })); return s; })(),
-          el('span', {}, 'DFDV actual'),
+      legendFor(c2, DECOMP),
+      c2.host,
+      dlRow(c2, 'Where DFDV’s return came from', 'decomposition', SRC_LINE),
+      el('div', { class: 'gauge' }, [
+        el('div', { class: 'ends', style: 'margin-top:0' }, [
+          el('span', {}, `SOL price ${nf(dc.sol, 2)}×`),
+          el('span', {}, `× SOL per share ${nf(dc.sps, 2)}×`),
+          el('span', {}, `× mNAV ${nf(dc.mnav, 3)}×`),
+          el('span', { style: 'color:var(--orange)' }, `= DFDV ${nf(dc.dfdv, 3)}×`),
         ]),
-        el('div', { class: 'it', 'aria-pressed': 'true' }, [
+      ]),
+    ]),
+    el('div', { class: 'panel', style: 'margin-top:16px' }, [
+      el('div', { class: 'panel-hd' }, [
+        el('div', {}, [
+          el('h3', {}, 'Price against NAV per share'),
+          el('div', { class: 'sub' }, 'Dollars per share — the band is fixed, so changing the range only pans it'),
+        ]),
+        el('div', { class: 'ctrls' }, [
+          rangeControls(c2b, S.dates),
+          segGroup([['log', 'Log'], ['lin', 'Linear']], 'log', v => { c2b.state.log = v === 'log'; c2b.draw(); }),
+        ]),
+      ]),
+      el('div', { class: 'legend' }, [
+        el('div', { class: 'it' }, [
+          (() => { const s = svgEl('svg', { width: 22, height: 10 }); s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--s-dfdv)', 'stroke-width': 2.5, 'stroke-linecap': 'round' })); return s; })(),
+          el('span', {}, 'DFDV share price'),
+        ]),
+        el('div', { class: 'it' }, [
+          (() => { const s = svgEl('svg', { width: 22, height: 10 }); s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--s-etf)', 'stroke-width': 2, 'stroke-linecap': 'round' })); return s; })(),
+          el('span', {}, 'NAV per share'),
+        ]),
+        el('div', { class: 'it' }, [
           (() => {
             const s = svgEl('svg', { width: 22, height: 10 });
             s.append(svgEl('rect', { x: 0, y: 1, width: 22, height: 8, fill: 'var(--band)' }));
             s.append(svgEl('line', { x1: 0, x2: 22, y1: 5, y2: 5, stroke: 'var(--band-edge)', 'stroke-width': 1.25, 'stroke-dasharray': '5 4' }));
             return s;
           })(),
-          el('span', {}, 'Expected range from leverage + SPS growth'),
+          el('span', {}, 'Where its recent mNAV range would put it'),
         ]),
       ]),
-      c2.host,
-      gauge,
+      c2b.host,
+      dlRow(c2b, 'DFDV price against NAV per share', 'price-vs-nav', SRC_LINE),
+      el('div', { class: 'gauge' }, [
+        el('div', { class: 'bar' }, [el('div', { class: 'mk', style: `left:calc(${posPct}% - 1.5px)` })]),
+        el('div', { class: 'ends' }, [
+          el('span', {}, `Cheap edge · ${usd(S.band_lo[S.band_lo.length - 1])} (mNAV p25)`),
+          el('span', { style: 'color:var(--orange)' },
+            inBand ? `DFDV at ${nf(D.band_position * 100, 0)}% across the band`
+              : (D.band_position > 1 ? 'DFDV above the band' : 'DFDV below the band')),
+          el('span', {}, `Rich edge · ${usd(S.band_hi[S.band_hi.length - 1])} (mNAV p75)`),
+        ]),
+      ]),
     ]),
   ]));
 
@@ -770,7 +1005,6 @@ function render(D) {
     aria: 'Levered SOL exposure over time',
     fmtAxis: v => nf(v, 1) + '×', fmtTip: v => nf(v, 2) + '×', fmtEnd: v => nf(v, 2) + '×',
   });
-
   // Percent-of-float and days-to-cover are different units, so they get their own
   // axes as small multiples rather than sharing one scale.
   const shortDates = D.short_history.map(r => r.date);
@@ -788,23 +1022,23 @@ function render(D) {
   });
 
   main.append(el('section', {}, [
-    el('h2', { html: 'Leverage &amp; short interest over time<span class="rule"></span>' }),
+    sectionHead('Leverage & Short Interest Over Time'),
     el('div', { class: 'note' },
       `Leverage is not a policy dial DFDV sets — it moves with mNAV. When the stock falls relative to the SOL behind it, ` +
-      `each share carries more SOL exposure, not less. Short interest is plotted at FINRA settlement dates; ` +
-      `the % of float series holds the insider-held fraction constant and lets float track the share count.`),
+      `each share carries more SOL exposure, not less. Short interest is plotted at FINRA settlement dates; the % of ` +
+      `float series holds the insider-held fraction constant and lets float track the share count.`),
     el('div', { class: 'trio' }, [
-      el('div', { class: 'card' }, [
-        el('div', { class: 'card-hd' }, [el('div', {}, [el('h3', {}, 'Levered SOL exposure'), el('div', { class: 'sub' }, 'SOL NAV ÷ market cap')])]),
-        c3.host,
+      el('div', { class: 'panel' }, [
+        el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Levered SOL Exposure'), el('div', { class: 'sub' }, 'SOL NAV ÷ market cap')])]),
+        c3.host, dlRow(c3, 'DFDV levered SOL exposure', 'leverage', SRC_LINE),
       ]),
-      el('div', { class: 'card' }, [
-        el('div', { class: 'card-hd' }, [el('div', {}, [el('h3', {}, 'Short interest'), el('div', { class: 'sub' }, '% of float, at settlement')])]),
-        c4.host,
+      el('div', { class: 'panel' }, [
+        el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Short Interest'), el('div', { class: 'sub' }, '% of float, at settlement')])]),
+        c4.host, dlRow(c4, 'DFDV short interest, % of float', 'short-interest', SRC_LINE),
       ]),
-      el('div', { class: 'card' }, [
-        el('div', { class: 'card-hd' }, [el('div', {}, [el('h3', {}, 'Days to cover'), el('div', { class: 'sub' }, 'short interest ÷ average daily volume')])]),
-        c5.host,
+      el('div', { class: 'panel' }, [
+        el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Days to Cover'), el('div', { class: 'sub' }, 'short interest ÷ average daily volume')])]),
+        c5.host, dlRow(c5, 'DFDV days to cover', 'days-to-cover', SRC_LINE),
       ]),
     ]),
   ]));
@@ -818,56 +1052,54 @@ function render(D) {
     ['perp', 'SOL perp 1×', 'var(--s-perp)'],
   ];
   const cw = [['1m', '1M'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD'], ['1y', '1Y'], ['treasury', 'Since Apr ’25']];
-  const ctbl = el('table', {}, [
-    el('thead', {}, el('tr', {}, [el('th', {}, 'Vehicle')].concat(cw.map(([, l]) => el('th', {}, l))))),
-    el('tbody', {}, CROWS.map(([k, label, color]) => {
-      const row = D.compare[k] || {};
-      return el('tr', {}, [
-        el('td', {}, [el('i', { class: 'sw', style: `background:${color};display:inline-block;margin-right:8px;vertical-align:middle` }), label]),
-      ].concat(cw.map(([w]) => el('td', { class: 'n ' + cls(row[w]) }, pct(row[w], 1)))));
-    })),
-  ]);
   main.append(el('section', {}, [
-    el('h2', { html: 'Returns by vehicle<span class="rule"></span>' }),
+    sectionHead('Returns by Vehicle'),
     el('div', { class: 'note' },
       `The same windows as the chart, as numbers. BSOL has no "since Apr '25" figure because it did not exist then; ` +
       `it returned ${pct(D.compare.bsol?.since_launch, 1)} from its ${dateLabel(M.bsol_inception)} launch.`),
-    el('div', { class: 'tblwrap' }, ctbl),
+    el('div', { class: 'tblwrap' }, el('table', {}, [
+      el('thead', {}, el('tr', {}, [el('th', {}, 'Vehicle')].concat(cw.map(([, l]) => el('th', {}, l))))),
+      el('tbody', {}, CROWS.map(([k, label, color]) => {
+        const row = D.compare[k] || {};
+        return el('tr', {}, [
+          el('td', {}, [el('i', { class: 'sw', style: `background:${color};display:inline-block;margin-right:9px;vertical-align:middle` }), label]),
+        ].concat(cw.map(([w]) => el('td', { class: 'n ' + cls(row[w]) }, pct(row[w], 1)))));
+      })),
+    ])),
   ]));
 
   /* 8. holders ------------------------------------------------------------ */
-  const O = D.ownership;
-  const htbl = el('table', {}, [
-    el('thead', {}, el('tr', {}, ['Institution', 'Shares', '% of shares out', 'Change', 'Value', 'As of']
-      .map(t => el('th', {}, t)))),
-    el('tbody', {}, O.holders.map(r => el('tr', {}, [
-      el('td', {}, r.name),
-      el('td', { class: 'n' }, int(r.shares)),
-      el('td', { class: 'n' }, nf(r.shares / h.shares_outstanding * 100, 2) + '%'),
-      el('td', { class: 'n ' + cls(r.change) }, (r.change > 0 ? '+' : '') + int(r.change)),
-      el('td', { class: 'n' }, compact(r.value_usd, '$')),
-      el('td', { class: 'n' }, r.date ? dateLabel(r.date) : '—'),
-    ]))),
-  ]);
-  const P = O.positions || {};
+  const O = D.ownership, P = O.positions || {};
   main.append(el('section', {}, [
-    el('h2', { html: 'Largest institutional holders<span class="rule"></span>' }),
+    sectionHead('Largest Institutional Holders', 'most recent filing ' + dateLabel(O.as_of)),
     el('div', { class: 'note' },
-      `From 13F filings collated by Nasdaq, most recently ${dateLabel(O.as_of)}. 13Fs are filed 45 days after ` +
-      `quarter-end, so this lags — and holders report on different dates, shown per row. It covers institutions ` +
-      `only; insiders hold about ${nf(h.insider_pct, 1)}% and are not listed here.`),
+      `From 13F filings collated by Nasdaq. 13Fs are filed 45 days after quarter-end, so this lags — and holders ` +
+      `report on different dates, shown per row. It covers institutions only; insiders hold about ` +
+      `${nf(h.insider_pct, 1)}% and are not listed here.`),
     tileGrid(4, [
-      tile('Institutional ownership', nf(O.institutional_ownership_pct, 1) + '%', int(P['Total Institutional Shares']?.shares) + ' shares'),
+      tile('Institutional Ownership', nf(O.institutional_ownership_pct, 1) + '%', int(P['Total Institutional Shares']?.shares) + ' shares'),
       tile('Holders', int(P['Total Institutional Shares']?.holders), `${int(P['New Positions']?.holders)} new · ${int(P['Sold Out Positions']?.holders)} exited`),
       tile('Increased', int(P['Increased Positions']?.holders), int(P['Increased Positions']?.shares) + ' shares'),
       tile('Decreased', int(P['Decreased Positions']?.holders), int(P['Decreased Positions']?.shares) + ' shares'),
     ]),
-    el('div', { class: 'tblwrap', style: 'margin-top:16px;max-height:520px;overflow-y:auto' }, htbl),
+    el('div', { class: 'tblwrap', style: 'margin-top:14px;max-height:520px;overflow-y:auto' },
+      el('table', {}, [
+        el('thead', {}, el('tr', {}, ['Institution', 'Shares', '% of Shares Out', 'Change', 'Value', 'As of']
+          .map(t => el('th', {}, t)))),
+        el('tbody', {}, O.holders.map(r => el('tr', {}, [
+          el('td', {}, r.name),
+          el('td', { class: 'n' }, int(r.shares)),
+          el('td', { class: 'n' }, nf(r.shares / h.shares_outstanding * 100, 2) + '%'),
+          el('td', { class: 'n ' + cls(r.change) }, (r.change > 0 ? '+' : '') + int(r.change)),
+          el('td', { class: 'n' }, compact(r.value_usd, '$')),
+          el('td', { class: 'n' }, r.date ? dateLabel(r.date) : '—'),
+        ]))),
+      ])),
   ]));
 
   /* 9. methodology -------------------------------------------------------- */
   main.append(el('section', {}, [
-    el('h2', { html: 'Methodology &amp; sources<span class="rule"></span>' }),
+    sectionHead('Methodology & Sources'),
     el('details', { class: 'meth' }, [
       el('summary', {}, 'How every number on this page is built'),
       el('div', { class: 'meth-body', html: `
@@ -891,19 +1123,32 @@ reciprocal of mNAV. It is currently <b>${nf(h.leverage, 2)}×</b>. Note this dif
 <code>total debt ÷ market cap</code> definition in <i>The SOL Boost</i>, which is
 <b>${nf(h.debt_to_mktcap, 2)}×</b>; the first is exposure, the second is borrowing.</p>
 
-<h4>The expected band</h4>
-<p>Both edges chain daily returns from ${dateLabel(M.treasury_start)}, the first SOL purchase:</p>
-<ul>
-  <li><b>Floor</b> — <code>L[t-1] × SOL return[t]</code>. Pure levered SOL beta, no credit for treasury growth.
-      Because leverage compounds, this decays through a volatile flat market even when SOL round-trips.</li>
-  <li><b>Ceiling</b> — <code>L[t-1] × SOL return[t] + SPS growth[t]</code>. The SOL Boost formula as written,
-      crediting every bit of SOL-per-share growth as accretive to equity.</li>
-</ul>
-<p>The honest answer is between them. SPS growth funded by equity issued above NAV, or by staking yield, is
-accretive; SPS growth funded by debt raises assets and liabilities together and is not accretive at the moment
-it happens. Splitting the two would need a daily net-debt series DFDV does not publish, so this shows the range
-rather than picking a point inside it. DFDV currently sits at <b>${nf((D.band_position ?? 0) * 100, 0)}%</b> of
-the band.</p>
+<h4>The return decomposition</h4>
+<p>Because NAV per share is <code>SPS × SOL price</code> and mNAV is <code>price ÷ NAV per share</code>, the
+share price satisfies an exact identity:</p>
+<p><code>price = mNAV × SOL per share × SOL price</code></p>
+<p>So the return over <i>any</i> window factors into three multiplicative drivers with nothing estimated. Since
+${dateLabel(M.treasury_start)} they are <b>${nf(dc.sol, 3)}× × ${nf(dc.sps, 3)}× × ${nf(dc.mnav, 4)}×
+= ${nf(dc.product, 4)}×</b>, against an actual <b>${nf(dc.dfdv, 4)}×</b> — the ${nf(dc.residual_pct, 3)}%
+difference is rounding. This replaces an earlier construction on this page that chained
+<code>leverage × SOL return + SPS growth</code>. That was wrong: levered SOL exposure is
+<code>SOL NAV ÷ market cap</code>, which already rises when debt buys more SOL, so adding the SPS-growth term
+counted the same debt-funded SOL twice. The identity above needs no leverage assumption at all.</p>
+
+<h4>The valuation band</h4>
+<p><code>NAV per share × the 25th and 75th percentile of mNAV over the trailing 180 trading days</code> — where
+DFDV would trade if the market paid the multiple it has lately been paying for the treasury DFDV now holds. It
+is drawn in dollars per share rather than as an indexed return, so changing the chart's time range pans and
+zooms it but never redraws it. DFDV currently sits <b>${nf((D.band_position ?? 0) * 100, 0)}%</b> of the way
+across the band.</p>
+
+<h4>A caution on "leverage"</h4>
+<p>Two different numbers travel under that word here, and neither is a price multiplier on its own.
+<code>SOL NAV ÷ market cap</code> (<b>${nf(h.leverage, 2)}×</b>) is SOL exposure per dollar of market value.
+<code>SOL NAV ÷ (SOL NAV − net debt)</code> (<b>${nf(h.sol_nav / (h.sol_nav - h.net_debt), 2)}×</b>) is the
+true gearing on book equity. Which one moves the share price depends on whether the market re-rates: hold mNAV
+fixed and the price elasticity to SOL is exactly 1.0, because price is linear in the SOL price at a fixed
+multiple. That is precisely why this page decomposes the return instead of asserting a leverage multiplier.</p>
 
 <h4>The synthetic SOL ETF</h4>
 <p>SOL spot compounded with the staking yield implied by the dfdvSOL exchange rate over the trailing 90 days
@@ -934,7 +1179,6 @@ fraction constant and lets float track the share count — the level is exact to
     ]),
   ]));
 
-  /* footer ---------------------------------------------------------------- */
   $('#foot').innerHTML =
     `<p><b>Not investment advice.</b> This page is an independently assembled view of public data about
      DeFi Development Corp (Nasdaq: DFDV). It is for information only, is not an offer to buy or sell any
@@ -942,14 +1186,14 @@ fraction constant and lets float track the share count — the level is exact to
      are not warranted as accurate or complete, and may differ from DFDV's SEC filings, which govern.
      Past performance does not indicate future results. The synthetic ETF, perpetual and expected-band series
      are illustrative models, not forecasts or guarantees.</p>
-     <p style="margin-top:10px">Generated ${new Date(D.generated_at).toUTCString()} ·
-     Sources: <a href="https://defidevcorp.com">defidevcorp.com</a>,
-     Nasdaq, Hyperliquid, stockanalysis.com ·
+     <p style="margin-top:11px">Generated ${new Date(D.generated_at).toUTCString()} ·
+     Sources: <a href="https://defidevcorp.com">defidevcorp.com</a>, Nasdaq, Hyperliquid, stockanalysis.com ·
      Leverage framework: <a href="https://defidevcorp.beehiiv.com/p/the-sol-boost">The SOL Boost</a></p>`;
 
   // Draw synchronously: requestAnimationFrame never fires in a backgrounded tab,
   // which would leave the charts blank for anyone opening the page in a new tab.
-  const drawAll = () => { c1.draw(); c2.draw(); c3.draw(); c4.draw(); c5.draw(); };
+  const charts = [c1, c2, c2b, c3, c4, c5];
+  const drawAll = () => charts.forEach(c => c.draw());
   drawAll();
   // Re-draw once webfonts settle, since tick labels are measured.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawAll);
@@ -961,7 +1205,7 @@ fetch('data.json', { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error(`data.json → HTTP ${r.status}`); return r.json(); })
   .then(render)
   .catch(e => {
-    $('#asof').textContent = 'Failed to load data';
+    $('#tagline').textContent = 'Failed to load data';
     $('#main').append(el('div', { class: 'err', html:
       `<b>Could not load data.json.</b><br>${e.message}<br><br>
        If you opened this file directly from disk, the browser blocks <code>fetch</code> on
