@@ -55,29 +55,50 @@
 
   --syne:"Syne",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+  --gut:48px;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
+html,body{height:100%;overflow-x:clip}
 body{
-  background:var(--bg);
-  background-image:radial-gradient(1100px 460px at 50% -170px, var(--bg-glow) 0%, transparent 70%);
-  background-repeat:no-repeat;
-  color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.5;
+  background:
+    radial-gradient(80% 50% at 20% 0%, rgba(40,70,140,.30) 0%, transparent 55%) fixed,
+    linear-gradient(#0a1633 0%, #060e26 60%, #030815 100%) var(--bg);
+  color:var(--ink); font-family:var(--syne); font-size:15px; line-height:1.5;
   -webkit-font-smoothing:antialiased;
+  display:flex; flex-direction:column; min-height:100vh;
 }
-.wrap{max-width:1240px;margin:0 auto;padding:0 20px 80px}
+.wrap{padding:0 var(--gut) 80px}
 a{color:var(--orange);text-decoration:none}
 a:hover{text-decoration:underline}
 :focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:4px}
 
+/* marquee ----------------------------------------------------------------- */
+.marquee{flex:0 0 auto;overflow:hidden;background:var(--panel);border-bottom:1px solid var(--line-2)}
+.marquee-track{display:inline-flex;white-space:nowrap;will-change:transform;padding:9px 0;
+  animation:marq var(--dur,70s) linear infinite}
+.marquee:hover .marquee-track,.marquee:focus-within .marquee-track{animation-play-state:paused}
+@keyframes marq{100%{transform:translateX(-50%)}}
+.mq-item{display:inline-flex;align-items:baseline;gap:9px;padding:0 0 0 30px;font-size:13px;font-weight:600}
+.mq-item::after{content:"•";margin-left:30px;color:rgba(143,165,212,.3)}
+.mq-src{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.mq-item a{color:var(--ink-2);text-decoration:none}
+.mq-item a:hover{color:var(--ink)}
+.mq-date{font-size:10.5px;font-weight:700;color:var(--ink-3);font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){
+  .marquee{overflow-x:auto}
+  .marquee-track{animation:none}
+}
+
 /* header ------------------------------------------------------------------ */
-.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;padding:34px 0 22px}
-.brand{display:flex;align-items:center;gap:13px}
-.mark{flex:none;width:34px;height:34px}
-h1{margin:0;font-family:var(--syne);font-size:31px;font-weight:800;letter-spacing:-.01em;line-height:1.05}
-.tagline{font-family:var(--syne);font-size:14px;font-weight:600;color:var(--ink-2);margin-top:7px}
-.topright{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.top{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;justify-content:space-between;padding:34px 0 0}
+h1{margin:0;font-family:var(--syne);font-size:clamp(28px,3.4vw,50px);font-weight:700;
+  letter-spacing:-.01em;line-height:1.05;display:flex;align-items:center;gap:.38em}
+.mark{height:.78em;width:auto;flex:0 0 auto}
+.tagline{font-family:var(--syne);font-size:clamp(14px,1.3vw,19px);font-weight:600;
+  color:var(--ink-2);margin-top:8px}
+.topright{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex:0 0 auto}
 .builtby{font-family:var(--syne);font-size:9.5px;font-weight:700;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink-3)}
 .builtby a{color:var(--ink-2)}
@@ -85,36 +106,41 @@ h1{margin:0;font-family:var(--syne);font-size:31px;font-weight:800;letter-spacin
   border:1px solid var(--line);border-radius:20px;padding:7px 14px;
   font-family:var(--syne);font-size:11.5px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--ink-2)}
-.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--mint);flex:none}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--mint);flex:none;
+  animation:pulse 2.4s ease infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(20,241,149,.55)}
+  70%{box-shadow:0 0 0 8px rgba(20,241,149,0)}
+  100%{box-shadow:0 0 0 0 rgba(20,241,149,0)}
+}
 
 /* hero strip -------------------------------------------------------------- */
-.herorow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+.herorow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
 .hcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .hcard .k{font-family:var(--syne);font-size:11px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--ink-3)}
-.hcard .v{font-size:29px;font-weight:700;letter-spacing:-.02em;margin-top:6px;
+.hcard .v{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:6px;
   font-variant-numeric:tabular-nums;line-height:1.05}
 .hcard .s{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-top:5px}
 .hcard.accent{border-color:rgba(249,115,22,.32);
   background:linear-gradient(180deg,rgba(249,115,22,.09),var(--panel))}
 
 /* sections ---------------------------------------------------------------- */
-section{margin:42px 0 0}
-.shead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+section{margin:46px 0 0}
+.shead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .shead h2{margin:0;font-family:var(--syne);font-size:17px;font-weight:700;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
-.shead .asof{font-family:var(--syne);font-size:12px;font-weight:600;color:var(--ink-3)}
-.rule{display:block;height:2px;width:34px;background:var(--orange);border-radius:1px;margin:9px 0 0}
-.note{color:var(--ink-2);font-size:13px;margin:13px 0 16px;max-width:78ch}
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
+.shead .rule{flex:1 1 0;height:1px;background:var(--line-2)}
+.shead .asof{font-family:var(--syne);font-size:12px;font-weight:600;color:var(--ink-3);
+  font-style:italic;white-space:nowrap}
+.note{color:var(--ink-2);font-size:13px;margin:14px 0 16px;max-width:82ch}
 
 /* tiles ------------------------------------------------------------------- */
-.tiles{display:grid;gap:12px}
-.g8{grid-template-columns:repeat(4,1fr)}
-.g4{grid-template-columns:repeat(4,1fr)}
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(186px,1fr))}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;min-width:0}
 .tile .k{font-family:var(--syne);font-size:11px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--ink-3);line-height:1.3}
-.tile .v{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-top:6px;
+.tile .v{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:6px;
   font-variant-numeric:tabular-nums;line-height:1.15}
 .tile .s{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-top:4px;
   font-variant-numeric:tabular-nums}
@@ -228,14 +254,11 @@ footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
   font-size:11.5px;color:var(--ink-3);line-height:1.7;max-width:100ch}
 .err{border:1px solid var(--neg);border-radius:14px;padding:18px;color:var(--ink-2);font-size:13px}
 
-@media (max-width:1080px){
-  .herorow{grid-template-columns:repeat(2,1fr)}
-  .g8,.g4{grid-template-columns:repeat(3,1fr)}
-}
+@media (max-width:1100px){ :root{--gut:26px} }
 @media (max-width:760px){
-  .wrap{padding:0 14px 60px}
-  .herorow,.g8,.g4{grid-template-columns:repeat(2,1fr)}
-  h1{font-size:25px} .hcard .v{font-size:25px}
+  :root{--gut:14px}
+  .wrap{padding-bottom:60px}
+  .hcard .v{font-size:25px}
   .trio{grid-template-columns:1fr}
 }
 .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -244,21 +267,24 @@ footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
 </style>
 </head>
 <body>
+<div class="marquee" id="marquee" aria-label="Latest from the DFDV newsletter" hidden>
+  <div class="marquee-track" id="marqueeTrack"></div>
+</div>
 <div class="wrap">
   <header>
     <div class="top">
-      <div class="brand">
-        <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
-          <g fill="var(--orange)">
-            <rect x="4"  y="7"  width="26" height="5" rx="2.5" transform="skewX(-12)"/>
-            <rect x="4"  y="15" width="26" height="5" rx="2.5" transform="skewX(-12)" opacity=".72"/>
-            <rect x="4"  y="23" width="26" height="5" rx="2.5" transform="skewX(-12)" opacity=".46"/>
+      <div>
+        <h1><svg class="mark" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs><linearGradient id="dfdvg" x1="30" y1="2" x2="6" y2="32" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#F5A524"></stop><stop offset="1" stop-color="#ED3D24"></stop>
+          </linearGradient></defs>
+          <g fill="url(#dfdvg)">
+            <rect x="6"  y="6"  width="25" height="5.4" rx="2.7" transform="skewX(-14)"/>
+            <rect x="6"  y="14.3" width="25" height="5.4" rx="2.7" transform="skewX(-14)"/>
+            <rect x="6"  y="22.6" width="25" height="5.4" rx="2.7" transform="skewX(-14)"/>
           </g>
-        </svg>
-        <div>
-          <h1>State of DFDV</h1>
-          <div class="tagline" id="tagline">Loading…</div>
-        </div>
+        </svg>State of DFDV</h1>
+        <div class="tagline" id="tagline">Loading…</div>
       </div>
       <div class="topright">
         <div class="builtby">Built by <a href="https://defidevcorp.com">DeFi Development Corp.</a></div>
@@ -325,9 +351,10 @@ function tile(k, v, sub, klass) {
   ]);
 }
 const tileGrid = (cols, items) => el('div', { class: 'tiles g' + cols }, items);
-const sectionHead = (title, asof) => el('div', {}, [
-  el('div', { class: 'shead' }, [el('h2', {}, title), asof ? el('div', { class: 'asof' }, asof) : null]),
+const sectionHead = (title, asof) => el('div', { class: 'shead' }, [
+  el('h2', {}, title),
   el('span', { class: 'rule' }),
+  asof ? el('span', { class: 'asof' }, asof) : null,
 ]);
 
 /* =========================================================================
@@ -826,8 +853,30 @@ function legendFor(chart, series) {
 const RANGES = [['1m', '1M'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD'], ['1y', '1Y'], ['max', 'Max']];
 const SRC_LINE = 'Sources: defidevcorp.com · Nasdaq · Hyperliquid — not investment advice';
 
+/* The marquee runs one track translated to -50%, so the item list has to appear
+   twice for the loop to be seamless. Duration scales with content length, which is
+   what keeps the scroll speed constant however many posts come back. */
+function renderMarquee(posts) {
+  if (!posts || !posts.length) return;
+  const track = $('#marqueeTrack');
+  const item = p => {
+    const span = el('span', { class: 'mq-item' }, [
+      el('span', { class: 'mq-src' }, 'DFDV Newsletter'),
+      el('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer' }, p.title),
+    ]);
+    if (p.date) span.append(el('span', { class: 'mq-date' }, dateLabel(p.date)));
+    return span;
+  };
+  const once = posts.map(item);
+  track.replaceChildren(...once, ...posts.map(item));
+  const chars = posts.reduce((n, p) => n + (p.title || '').length + 26, 0);
+  track.style.setProperty('--dur', Math.max(45, Math.round(chars / 8.2)) + 's');
+  $('#marquee').hidden = false;
+}
+
 function render(D) {
   const h = D.headline, S = D.series, M = D.methodology, L = D.leverage_stats, R = D.returns;
+  renderMarquee(D.posts);
 
   $('#tagline').textContent = 'How the Solana treasury strategy is actually performing.';
   $('#pilltxt').textContent = 'Updated ' + dateLabel((D.as_of.dfdv_api || '').slice(0, 10));

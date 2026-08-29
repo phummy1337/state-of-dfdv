@@ -286,6 +286,51 @@ def hyperliquid_funding(start_iso: str) -> dict[str, float]:
     return daily
 
 
+BEEHIIV_HOME = "https://defidevcorp.beehiiv.com/"
+
+
+def beehiiv_posts(limit: int = 12) -> list[dict]:
+    """Recent newsletter posts. beehiiv exposes no RSS on this publication, but its
+    homepage embeds the post records as raw JSON, which is what we read."""
+    html = _get(BEEHIIV_HOME, PLAIN_UA, timeout=45).decode("utf-8", "ignore")
+    out = []
+    for m in re.finditer(r'\{"id":"[0-9a-f-]{36}","publication_id":"[0-9a-f-]{36}"', html):
+        start = m.start()
+        depth = 0
+        for i in range(start, min(len(html), start + 60000)):
+            if html[i] == "{":
+                depth += 1
+            elif html[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        rec = json.loads(html[start:i + 1])
+                    except ValueError:
+                        rec = None
+                    break
+        else:
+            rec = None
+        if not rec or rec.get("status") != "published" or not rec.get("slug"):
+            continue
+        date = (rec.get("override_scheduled_at") or rec.get("created_at") or "")[:10]
+        out.append({
+            "title": rec.get("web_title"),
+            "subtitle": rec.get("web_subtitle"),
+            "slug": rec["slug"],
+            "url": f"{BEEHIIV_HOME}p/{rec['slug']}",
+            "date": date or None,
+            "reading_time": rec.get("estimated_reading_time"),
+        })
+    # De-duplicate on slug, newest first.
+    seen, uniq = set(), []
+    for p in sorted(out, key=lambda r: r["date"] or "", reverse=True):
+        if p["slug"] in seen:
+            continue
+        seen.add(p["slug"])
+        uniq.append(p)
+    return uniq[:limit]
+
+
 FORM_LABELS = {
     "10-K": "Annual report", "10-Q": "Quarterly report", "8-K": "Current report",
     "4": "Insider transaction", "3": "Initial insider statement", "5": "Annual insider statement",
@@ -414,6 +459,15 @@ def build(dry: bool = False) -> dict:
     except Exception as exc:  # noqa: BLE001 - the page degrades to no filings list
         warn(f"SEC filings fetch failed ({exc}); filings section will be empty")
         filings = {"entity": None, "cik": DFDV_CIK, "filings": [], "latest_by_form": {}}
+
+    print("Fetching beehiiv posts...")
+    try:
+        posts = beehiiv_posts()
+        if not posts:
+            warn("beehiiv returned no published posts; the marquee will be empty")
+    except Exception as exc:  # noqa: BLE001 - the marquee degrades to nothing
+        warn(f"beehiiv fetch failed ({exc}); the marquee will be empty")
+        posts = []
 
     sa = stockanalysis_stats("DFDV")
     float_shares = int(sa["float"]) if sa.get("float") else None
@@ -779,6 +833,7 @@ def build(dry: bool = False) -> dict:
         "debt": debt,
         "ownership": holders,
         "filings": filings,
+        "posts": posts,
         "warnings": WARNINGS,
     }
     return data
