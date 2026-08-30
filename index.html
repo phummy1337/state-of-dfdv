@@ -102,20 +102,20 @@ h1{margin:0;font-family:var(--syne);font-size:clamp(28px,3.4vw,50px);font-weight
 .mark{height:.78em;width:auto;flex:0 0 auto}
 .tagline{font-family:var(--syne);font-size:clamp(14px,1.3vw,19px);font-weight:600;
   color:var(--ink-2);margin-top:8px}
-.topright{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex:0 0 auto}
-.dfdv{display:flex;align-items:center;gap:13px;text-decoration:none}
+.topright{display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex:0 0 auto}
+.dfdv{display:flex;align-items:center;gap:10px;text-decoration:none}
 .dfdv:hover{text-decoration:none}
 .dfdv:hover .dfdv-name{color:var(--orange)}
-.builtby{font-family:var(--syne);font-size:9.5px;font-weight:700;letter-spacing:.1em;
+.builtby{font-family:var(--syne);font-size:8.5px;font-weight:700;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
-.dfdv-mark{height:23px;width:auto;flex:0 0 auto}
-.dfdv-name{font-family:var(--syne);font-size:15.5px;font-weight:700;color:var(--ink);
+.dfdv-mark{height:17px;width:auto;flex:0 0 auto}
+.dfdv-name{font-family:var(--syne);font-size:12.5px;font-weight:700;color:var(--ink);
   letter-spacing:-.01em;white-space:nowrap}
-.pill{display:inline-flex;align-items:center;gap:10px;background:var(--panel);
-  border:1px solid var(--line);border-radius:20px;padding:7px 14px;
-  font-family:var(--syne);font-size:11.5px;font-weight:700;letter-spacing:.09em;
+.pill{display:inline-flex;align-items:center;gap:8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:20px;padding:6px 13px;
+  font-family:var(--syne);font-size:10.5px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--ink-2)}
-.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--mint);flex:none;
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--mint);flex:none;
   animation:pulse 2.4s ease infinite}
 @keyframes pulse{
   0%{box-shadow:0 0 0 0 rgba(20,241,149,.55)}
@@ -970,7 +970,7 @@ function render(D) {
     { key: 'etf', label: 'SOL ETF (synthetic)', color: 'var(--s-etf)', values: S.etf },
     { key: 'bsol', label: 'BSOL (actual)', color: 'var(--s-etf)', dash: '2 4', width: 1.75, values: S.bsol, rebaseWith: 'etf' },
     { key: 'sol', label: 'SOL spot', color: 'var(--s-sol)', values: S.sol },
-    { key: 'slon', label: 'SLON 2× levered ETF', color: 'var(--s-sol)', dash: '7 3', width: 1.75, values: S.slon, rebaseWith: 'sol' },
+    { key: 'slon', label: `SLON 2× levered ETF`, color: 'var(--s-sol)', dash: '7 3', width: 1.75, values: S.slon, rebaseWith: 'sol' },
     { key: 'perp', label: 'SOL perp 1× (net funding)', color: 'var(--s-perp)', values: S.perp },
   ];
   const c1 = lineChart({
@@ -987,8 +987,8 @@ function render(D) {
         tile('3 Month', pct(R['3m']), null, cls(R['3m'])),
         tile('Year to Date', pct(R.ytd), null, cls(R.ytd)),
         tile('1 Year', pct(R['1y']), null, cls(R['1y'])),
-        tile('Beta to SOL', D.beta_stats.d90 === null ? '—' : nf(D.beta_stats.d90, 2) + '×',
-          D.beta_stats.all === null ? 'realised, 90d' : `90d realised · ${nf(D.beta_stats.all, 2)}× since Apr ’25`),
+        tile('Beta to SOL', D.beta_stats.d30 === null ? '—' : nf(D.beta_stats.d30, 2) + '×',
+          D.beta_stats.all === null ? '30d realised' : `30d realised · ${nf(D.beta_stats.all, 2)}× since Apr ’25`),
         tile('Staking Yield', nf(h.staking_apy_pct, 2) + '%', h.staking_apy_source),
         tile('Total Debt', compact(h.total_debt, '$'), nf(h.debt_to_mktcap, 2) + '× market cap'),
         tile('Volume', compact(h.volume), '30d avg ' + compact(h.avg_volume_30d)),
@@ -1024,7 +1024,10 @@ function render(D) {
           `staking yield (${nf(M.staking_apy_pct, 2)}%) less a ${nf(M.etf_mgmt_fee_pct, 2)}% sponsor fee and a ` +
           `${nf(M.etf_staking_fee_pct, 0)}% cut of rewards — BSOL's schedule — and runs the whole window because no ` +
           `spot SOL ETF existed before ${dateLabel(M.bsol_inception)}; actual BSOL is spliced in dashed from launch. ` +
-          `The perp is a 1× long paying realised Hyperliquid funding, less ${nf(M.perp_taker_fee_bps, 1)}bp at entry.`),
+          `The perp is a 1× long paying realised Hyperliquid funding, less ${nf(M.perp_taker_fee_bps, 1)}bp at entry. ` +
+          `BSOL and SLON are traded prices, already net of their fees — SLON's ${nf(M.slon_expense_ratio_pct, 2)}% ` +
+          `expense ratio is inside its line, not subtracted again. SOL is priced at the 4pm ET close so every ` +
+          `series is on the same clock.`),
       ]),
     ]),
   ]));
@@ -1100,9 +1103,9 @@ function render(D) {
         `term, because the exposure multiple is measured on SOL NAV and already rises when debt or issuance buys ` +
         `more SOL, so adding one would count the same SOL twice. DFDV above the band can therefore reflect ` +
         `treasury growth rather than richness. Worth reading beside the realised figure: DFDV's actual beta to ` +
-        `SOL has been ${D.beta_stats.d90 === null ? 'n/a' : nf(D.beta_stats.d90, 2) + '×'} over 90 days and ` +
-        `${D.beta_stats.all === null ? 'n/a' : nf(D.beta_stats.all, 2) + '×'} since the first purchase — well ` +
-        `under the ${nf(h.leverage, 2)}× of SOL its balance sheet carries.`),
+        `SOL has been ${D.beta_stats.d30 === null ? 'n/a' : nf(D.beta_stats.d30, 2) + '×'} over 30 days and ` +
+        `${D.beta_stats.all === null ? 'n/a' : nf(D.beta_stats.all, 2) + '×'} since the first purchase, against ` +
+        `${nf(h.leverage, 2)}× of SOL carried per dollar of market value.`),
     ]),
   ]));
 
@@ -1254,6 +1257,19 @@ function render(D) {
   <li><b>Public float and insider ownership</b> — stockanalysis.com.</li>
 </ul>
 
+<h4>Pricing the comparison</h4>
+<p>SOL is priced at <b>${M.sol_price_basis}</b>, so every series on the performance chart is sampled at the
+same instant the equity market closes. This matters more than it sounds: DFDV's own API publishes one SOL price
+per day on a UTC clock, and regressing a plain 1× spot SOL ETF against that series returned a beta of 0.26 and
+a correlation of 0.23 — impossible for a fund that simply holds the asset, and a sign the two series were about
+a day apart. Every return comparison and beta on this page previously inherited that error. On the aligned
+series BSOL now regresses at <b>${D.beta_stats.bsol_check === null ? 'n/a' : nf(D.beta_stats.bsol_check, 2) + '×'}</b>
+to SOL, which is the check that the clocks agree.</p>
+<p>BSOL and SLON are <i>traded prices</i>. An ETF's market price is already net of its expense ratio, which
+accrues daily against NAV, so no fee is subtracted from either line — SLON's <b>${nf(M.slon_expense_ratio_pct, 2)}%</b>
+expense ratio is inside its path, and deducting it again would double-count. Only the synthetic SOL ETF has fees
+applied explicitly, because it is a model rather than a fund.</p>
+
 <h4>Return windows</h4>
 <p>Calendar-day windows off the DFDV close, taking the last trading day at or before each anchor.
 "Since treasury strategy" runs from the <b>${dateLabel(M.inception)}</b> close of $0.5714 — the day the board
@@ -1281,9 +1297,10 @@ leaving it out is that this is a <i>leverage benchmark, not a fair value</i> —
 reflect treasury growth rather than richness.</p>
 
 <h4>Beta to SOL</h4>
-<p>The OLS slope of DFDV's daily returns regressed on SOL's, over the trailing 90 trading days and over the
+<p>The OLS slope of DFDV's daily returns regressed on SOL's, over the trailing 30 trading days and over the
 whole period. It is the realised counterpart to the balance-sheet exposure figure, and the two disagree
-sharply: <b>${D.beta_stats.d90 === null ? 'n/a' : nf(D.beta_stats.d90, 2) + '×'}</b> over 90 days and
+sharply: <b>${D.beta_stats.d30 === null ? 'n/a' : nf(D.beta_stats.d30, 2) + '×'}</b> over 30 days,
+<b>${D.beta_stats.d90 === null ? 'n/a' : nf(D.beta_stats.d90, 2) + '×'}</b> over 90 days and
 <b>${D.beta_stats.all === null ? 'n/a' : nf(D.beta_stats.all, 2) + '×'}</b> since the first purchase, against
 <b>${nf(h.leverage, 2)}×</b> of SOL carried per dollar of market value. Balance-sheet leverage is what DFDV
 holds; beta is what the market has actually paid it.</p>

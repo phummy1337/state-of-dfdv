@@ -27,6 +27,7 @@ import time
 import urllib.error
 import urllib.request
 from bisect import bisect_right
+from zoneinfo import ZoneInfo
 
 try:
     import certifi
@@ -65,6 +66,9 @@ BSOL_INCEPTION = "2025-10-28"
 # ProShares Ultra Solana - 2x daily levered SOL. Listed 2025-07-15.
 SLON_TICKER = "SLON"
 SLON_INCEPTION = "2025-07-15"
+# SLON's gross expense ratio. Recorded for disclosure only: SLON is a real traded fund,
+# so its market price is already net of fees and no adjustment is applied (or wanted).
+SLON_EXPENSE_RATIO = 2.14
 
 DFDV_API = "https://defidevcorp.com/api/dashboard"
 NASDAQ_HEADERS = {
@@ -383,6 +387,46 @@ def sec_filings(cik: str = DFDV_CIK, keep: int = FILINGS_KEPT) -> dict:
     }
 
 
+def coinbase_sol_at_us_close(start_iso: str) -> dict[str, float]:
+    """{iso date: SOL/USD at the 4pm ET equity close}, from Coinbase hourly candles.
+
+    This exists because of a real bug. DFDV's API publishes one SOL price per day on a
+    UTC clock, so comparing it against a 4pm ET equity close mixes timestamps roughly a
+    day apart. Regressed on that series a plain 1x spot SOL ETF (BSOL) showed a beta of
+    0.26 and a correlation of 0.23 - both impossible for a fund that holds the asset -
+    and every return comparison and beta on this page inherited the error. Sampling SOL
+    at the instant the equity market closes fixes it.
+
+    Coinbase candle buckets are labelled by their start, so the price *at* 16:00 ET is
+    the close of the bucket starting 15:00 ET.
+    """
+    out: dict[str, float] = {}
+    et_zone = ZoneInfo("America/New_York")
+    cursor = dt.datetime.fromisoformat(start_iso).replace(tzinfo=dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc)
+    step = dt.timedelta(hours=300)
+    guard = 0
+    while cursor < now and guard < 120:
+        guard += 1
+        end = min(cursor + step, now)
+        url = ("https://api.exchange.coinbase.com/products/SOL-USD/candles?granularity=3600"
+               f"&start={cursor.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+               f"&end={end.strftime('%Y-%m-%dT%H:%M:%SZ')}")
+        try:
+            rows = get_json(url, {"User-Agent": "state-of-dfdv"}, timeout=30)
+        except Exception as exc:  # noqa: BLE001
+            warn(f"Coinbase candles failed near {cursor:%Y-%m-%d} ({exc})")
+            cursor = end
+            continue
+        for c in rows:
+            et = dt.datetime.fromtimestamp(c[0], dt.timezone.utc).astimezone(et_zone)
+            if et.hour == 15:
+                out[et.date().isoformat()] = float(c[4])
+        cursor = end
+        time.sleep(0.16)  # stay inside Coinbase's public rate limit
+    return out
+
+
 def stockanalysis_stats(symbol: str) -> dict:
     """Public float and insider ownership, parsed out of stockanalysis.com's inline JSON.
 
@@ -454,6 +498,16 @@ def build(dry: bool = False) -> dict:
     summary = nasdaq_summary("DFDV")
     holders = nasdaq_holders("DFDV")
 
+    print("Fetching Coinbase SOL at the US close...")
+    try:
+        sol_et = coinbase_sol_at_us_close(TREASURY_START)
+        if len(sol_et) < 200:
+            warn(f"only {len(sol_et)} ET-close SOL prints; falling back to the daily UTC series")
+            sol_et = {}
+    except Exception as exc:  # noqa: BLE001
+        warn(f"Coinbase SOL fetch failed ({exc}); falling back to the daily UTC series")
+        sol_et = {}
+
     print("Fetching Hyperliquid SOL funding...")
     funding = hyperliquid_funding(TREASURY_START)
 
@@ -492,6 +546,10 @@ def build(dry: bool = False) -> dict:
     sol_keys = sorted(sol_px)
 
     def sol_on(d: str):
+        # Prefer the 4pm ET print so SOL and the equity close are the same instant; the
+        # daily UTC series is only a fallback when Coinbase is unavailable.
+        if d in sol_et:
+            return sol_et[d]
         i = bisect_right(sol_keys, d) - 1
         return sol_px[sol_keys[i]] if i >= 0 else None
 
@@ -620,14 +678,14 @@ def build(dry: bool = False) -> dict:
         except ValueError:
             band_pos.append(None)
 
-    # Realised beta of DFDV to SOL: OLS slope of daily DFDV returns on daily SOL returns.
-    def realised_beta(window=None):
+    # Realised beta to SOL: OLS slope of daily returns on SOL's daily returns.
+    def realised_beta(series, window=None):
         rd, rs = [], []
-        rng = range(1, len(s_dfdv)) if window is None else range(max(1, len(s_dfdv) - window), len(s_dfdv))
+        rng = range(1, len(series)) if window is None else range(max(1, len(series) - window), len(series))
         for i in rng:
-            if not s_dfdv[i - 1] or not s_sol[i - 1]:
+            if not series[i] or not series[i - 1] or not s_sol[i] or not s_sol[i - 1]:
                 continue
-            rd.append(s_dfdv[i] / s_dfdv[i - 1] - 1.0)
+            rd.append(series[i] / series[i - 1] - 1.0)
             rs.append(s_sol[i] / s_sol[i - 1] - 1.0)
         n = len(rs)
         if n < 20:
@@ -636,13 +694,15 @@ def build(dry: bool = False) -> dict:
         var = sum((x - ms) ** 2 for x in rs)
         if var <= 0:
             return None
-        cov = sum((rs[i] - ms) * (rd[i] - md) for i in range(n))
-        return cov / var
+        return sum((rs[i] - ms) * (rd[i] - md) for i in range(n)) / var
 
     beta_stats = {
-        "all": realised_beta(),
-        "d90": realised_beta(90),
-        "d30": realised_beta(30),
+        "all": realised_beta(s_dfdv),
+        "d90": realised_beta(s_dfdv, 90),
+        "d30": realised_beta(s_dfdv, 30),
+        # Sanity check: a 1x spot SOL ETF must regress near 1.0 against the SOL series.
+        # If this drifts far from 1, the two price series are misaligned in time again.
+        "bsol_check": realised_beta(s_bsol),
     }
 
     lev_vals = [v for v in s_lev if v]
@@ -789,6 +849,9 @@ def build(dry: bool = False) -> dict:
             "etf_staking_fee_pct": ETF_STAKING_FEE * 100,
             "staking_apy_pct": round(staking_apy, 2),
             "perp_taker_fee_bps": PERP_TAKER_FEE * 10000,
+            "sol_price_basis": ("Coinbase SOL-USD at the 4pm ET close" if sol_et
+                                else "daily UTC close (fallback - returns will be time-misaligned)"),
+            "slon_expense_ratio_pct": SLON_EXPENSE_RATIO,
             "bsol_inception": BSOL_INCEPTION,
         "slon_inception": SLON_INCEPTION,
         },
@@ -896,6 +959,10 @@ def main() -> int:
         f"{k}={c[k]['treasury']:.0f}%" for k in ("dfdv", "sol", "etf", "perp")
         if c[k].get("treasury") is not None))
     print(f"  band position: {data['band_position']:.2f}  leverage {data['leverage_stats']}")
+    b = data["beta_stats"]
+    print(f"  beta to SOL: 30d={b['d30']:.2f}  90d={b['d90']:.2f}  all={b['all']:.2f}"
+          f"   BSOL sanity (want ~1.0)={b['bsol_check'] if b['bsol_check'] is None else round(b['bsol_check'], 2)}")
+    print(f"  SOL basis: {data['methodology']['sol_price_basis']}")
     if data["warnings"]:
         print(f"  warnings: {len(data['warnings'])}")
 
