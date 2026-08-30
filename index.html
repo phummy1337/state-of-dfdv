@@ -974,7 +974,7 @@ function render(D) {
     { key: 'perp', label: 'SOL perp 1× (net funding)', color: 'var(--s-perp)', values: S.perp },
   ];
   const c1 = lineChart({
-    dates: S.dates, series: SERIES, log: true, aspect: 2, minHeight: 340,
+    dates: S.dates, series: SERIES, log: true, aspect: 2, minHeight: 340, defaultRange: '1m',
     aria: 'DFDV total return versus SOL spot, a synthetic SOL ETF, actual BSOL, and a 1x SOL perpetual',
     fmtAxis: (v, step) => pct(v - 100, step && step < 5 ? 1 : 0), fmtTip: v => pct(v - 100, 1),
   });
