@@ -411,76 +411,136 @@ function inlinePaint(src, dst) {
   for (let i = 0; i < s.length; i++) inlinePaint(s[i], d[i]);
 }
 
-function exportPNG(svg, meta) {
+function exportPNG(chart, meta) {
   const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const box = svg.getBoundingClientRect();
-  const W = Math.max(640, Math.round(box.width));
-  const H = Math.round(box.height) || 400;
-  const PAD = 26;
-  const legend = meta.legend || [];
-  const HEAD = 62 + (legend.length ? 26 : 0);
-  const FOOT = 34;
-  const outW = W + PAD * 2, outH = HEAD + H + FOOT;
 
-  const out = svgEl('svg', {
-    xmlns: NS, width: outW, height: outH, viewBox: `0 0 ${outW} ${outH}`,
+  // Re-render the chart at a fixed export width so the figure's proportions never
+  // depend on the browser window it happened to be drawn in, and so the axis picks a
+  // tick density suited to the output rather than to the on-screen panel.
+  const OUT_W = 1600;
+  const PAD = 56;
+  const plotW = OUT_W - PAD * 2;
+  const host = chart.host;
+  const prevW = host.style.width;
+  host.style.width = plotW + 'px';
+  chart.exportMode = true;
+  chart.draw();
+  const live = host.querySelector('svg');
+  const plotH = live.viewBox.baseVal.height;
+  const clone = live.cloneNode(true);
+  inlinePaint(live, clone);
+  clone.setAttribute('width', plotW);
+  clone.setAttribute('height', plotH);
+  chart.exportMode = false;
+  host.style.width = prevW;
+  chart.draw();
+
+  // Lay the legend out first - it can wrap to more than one row, and the canvas
+  // height depends on how many. Text is measured rather than estimated; guessing
+  // from character counts ran the last series off the right edge.
+  const LEG_SIZE = 21, LEG_GAP = 40, SW_W = 30, SW_PAD = 42, ROW_H = 34;
+  const meas = document.createElement('canvas').getContext('2d');
+  meas.font = `600 ${LEG_SIZE}px "Syne", Helvetica, Arial, sans-serif`;
+  const legItems = (meta.legend || []).map(it => {
+    const label = it.value ? `${it.label} (${it.value})` : it.label;
+    return { ...it, label, w: SW_PAD + meas.measureText(label).width };
   });
+  const rows = [[]];
+  let rowW = 0;
+  for (const it of legItems) {
+    if (rowW && rowW + it.w > plotW) { rows.push([]); rowW = 0; }
+    rows[rows.length - 1].push(it);
+    rowW += it.w + LEG_GAP;
+  }
+
+  const HEAD = 168, FOOT = 96;
+  const LEGEND = 40 + (rows.length - 1) * ROW_H + 22;
+  const outH = HEAD + plotH + LEGEND + FOOT;
+  const out = svgEl('svg', { xmlns: NS, width: OUT_W, height: outH, viewBox: `0 0 ${OUT_W} ${outH}` });
   const SANS = '"Syne",Helvetica,Arial,sans-serif';
   const MONO = 'ui-monospace,Menlo,Consolas,monospace';
-  out.append(svgEl('rect', { x: 0, y: 0, width: outW, height: outH, fill: cssVar('--bg') || '#030815' }));
+  const ink = cssVar('--ink'), ink2 = cssVar('--ink-2'), ink3 = cssVar('--ink-3'), orange = cssVar('--orange');
 
-  const text = (x, y, s, o = {}) => {
+  // Ground: the page's own gradient, flattened into the figure.
+  const defs = svgEl('defs');
+  const bg = svgEl('linearGradient', { id: 'exbg', x1: '0', y1: '0', x2: '0', y2: '1' });
+  for (const [o, c] of [[0, '#0a1633'], [0.6, '#060e26'], [1, '#030815']]) {
+    bg.append(svgEl('stop', { offset: o, 'stop-color': c }));
+  }
+  const mg = svgEl('linearGradient', {
+    id: 'exmark', x1: '121.6', y1: '320.9', x2: '426.11', y2: '16.4', gradientUnits: 'userSpaceOnUse',
+  });
+  mg.append(svgEl('stop', { offset: '0', 'stop-color': '#f18f34' }), svgEl('stop', { offset: '1', 'stop-color': '#ff4431' }));
+  defs.append(bg, mg);
+  out.append(defs, svgEl('rect', { x: 0, y: 0, width: OUT_W, height: outH, fill: 'url(#exbg)' }));
+
+  const text = (x, y, str, o = {}) => {
     const t = svgEl('text', {
-      x, y, fill: o.fill || cssVar('--ink'), 'font-size': o.size || 13,
-      'font-family': o.font || SANS, 'font-weight': o.weight || 700,
-      'text-anchor': o.anchor || 'start', 'letter-spacing': o.ls || null,
+      x, y, fill: o.fill || ink, 'font-size': o.size || 16, 'font-family': o.font || SANS,
+      'font-weight': o.weight || 700, 'text-anchor': o.anchor || 'start', 'letter-spacing': o.ls || null,
     });
-    t.textContent = s;
+    t.textContent = str;
     return t;
   };
 
-  out.append(text(PAD, 30, meta.title, { size: 16, ls: '1.3' }));
-  if (meta.subtitle) out.append(text(PAD, 49, meta.subtitle, { size: 12, weight: 600, fill: cssVar('--ink-3') }));
-  out.append(text(outW - PAD, 30, 'STATE OF DFDV', { size: 12, anchor: 'end', fill: cssVar('--orange'), ls: '1.6' }));
+  out.append(text(PAD, 74, meta.title, { size: 40 }));
+  if (meta.subtitle) out.append(text(PAD, 112, meta.subtitle, { size: 19, weight: 600, fill: ink2 }));
 
-  let lx = PAD;
-  for (const s of legend) {
-    out.append(svgEl('line', {
-      x1: lx, x2: lx + 20, y1: HEAD - 16, y2: HEAD - 16, stroke: s.color,
-      'stroke-width': s.width || 2, 'stroke-dasharray': s.dash || null, 'stroke-linecap': 'round',
-    }));
-    out.append(text(lx + 26, HEAD - 12, s.label, { size: 11.5, weight: 600, fill: cssVar('--ink-2') }));
-    lx += 26 + s.label.length * 6.4 + 20;
-  }
-
-  const clone = svg.cloneNode(true);
-  inlinePaint(svg, clone);
-  clone.setAttribute('width', W);
-  clone.setAttribute('height', H);
-  const g = svgEl('g', { transform: `translate(${PAD},${HEAD})` });
-  g.append(clone);
+  // Brand lockup, top right: the mark then the company name.
+  const NAME = 'DeFi Development Corp.';
+  const nameSize = 27;
+  const nameW = NAME.length * nameSize * 0.545;
+  const markH = 30, markW = markH * (548 / 200);
+  const g = svgEl('g', { transform: `translate(${OUT_W - PAD - nameW - markW - 18}, 44)` });
+  const ms = svgEl('svg', { width: markW, height: markH, viewBox: '0 0 548 200' });
+  ms.append(svgEl('path', { fill: 'url(#exmark)', d: 'M410.25,110.94V.54H137.47v110.4C86.5,129.98,39.74,159.82,0,199.3h44.22c28.31-23.66,59.71-42.58,93.25-56.35v56.21h29.82v-66.91c34.06-10.55,69.89-16.01,106.57-16.01s72.51,5.47,106.57,16.02v66.9h29.82v-56.19c33.52,13.77,64.93,32.67,93.23,56.33h44.22c-39.74-39.48-86.49-69.32-137.45-88.36ZM380.43,101.14c-34.22-9.71-70.01-14.71-106.57-14.71s-72.35,5-106.57,14.71V30.34h213.14v70.8Z' }));
+  g.append(ms);
+  g.append(text(markW + 18, markH - 7, NAME, { size: nameSize }));
   out.append(g);
 
-  out.append(text(PAD, outH - 12, meta.footer, { size: 10.5, weight: 600, font: MONO, fill: cssVar('--ink-3') }));
+  // Plot
+  const gp = svgEl('g', { transform: `translate(${PAD},${HEAD})` });
+  gp.append(clone);
+  out.append(gp);
+
+  // Legend under the plot, values included - a downloaded chart travels alone.
+  rows.forEach((row, ri) => {
+    let lx = PAD;
+    const ly = HEAD + plotH + 40 + ri * ROW_H;
+    for (const it of row) {
+      out.append(svgEl('line', {
+        x1: lx, x2: lx + SW_W, y1: ly - 7, y2: ly - 7, stroke: it.color,
+        'stroke-width': Math.max(5, (it.width || 2) * 2.2), 'stroke-linecap': 'round',
+        'stroke-dasharray': it.dash ? it.dash.split(' ').map(n => n * 2.2).join(' ') : null,
+      }));
+      out.append(text(lx + SW_PAD, ly, it.label, { size: LEG_SIZE, weight: 600, fill: ink }));
+      lx += it.w + LEG_GAP;
+    }
+  });
+
+  // Footer
+  out.append(svgEl('line', {
+    x1: PAD, x2: OUT_W - PAD, y1: outH - 60, y2: outH - 60,
+    stroke: 'rgba(143,165,212,.14)', 'stroke-width': 1,
+  }));
+  out.append(text(PAD, outH - 28, meta.footer, { size: 14, weight: 600, font: MONO, fill: ink3 }));
+  out.append(text(OUT_W - PAD, outH - 26, meta.brand, { size: 22, anchor: 'end', fill: orange }));
 
   const str = new XMLSerializer().serializeToString(out);
   const img = new Image();
   img.onload = () => {
     const scale = 2;
     const c = document.createElement('canvas');
-    c.width = outW * scale; c.height = outH * scale;
+    c.width = OUT_W * scale; c.height = outH * scale;
     const ctx = c.getContext('2d');
     ctx.scale(scale, scale);
     ctx.drawImage(img, 0, 0);
-    c.toBlob(async b => {
-      if (!b) return;
-      // Served from a normal origin an anchor download just works. Inside the
-      // claude.ai artifact viewer the sandbox makes page-initiated saves inert, so
-      // the file has to be handed over through the downloads capability instead.
+    c.toBlob(async b2 => {
+      if (!b2) return;
       const dl = await hostDownloads();
       if (dl) {
         try {
-          await dl.save({ filename: meta.filename, data: b });
+          await dl.save({ filename: meta.filename, data: b2 });
         } catch (err) {
           if (err && err.code && err.code !== 'declined' && err.code !== 'rate_limited') {
             alert('Could not save the PNG: ' + (err.message || err.code));
@@ -488,13 +548,13 @@ function exportPNG(svg, meta) {
         }
         return;
       }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = meta.filename;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      const a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(b2);
+      a2.download = meta.filename;
+      document.body.append(a2);
+      a2.click();
+      a2.remove();
+      setTimeout(() => URL.revokeObjectURL(a2.href), 2000);
     }, 'image/png');
   };
   img.onerror = () => alert('Could not render the chart to PNG in this browser.');
@@ -510,7 +570,15 @@ function lineChart(opts) {
   host.append(tip);
 
   const state = { range: opts.defaultRange || 'max', log: !!opts.log, off: new Set(), from: null };
-  const api = { host, state, draw, lastDrawn: [] };
+  const api = { host, state, draw, lastDrawn: [], exportMode: false };
+  api.endValue = s => {
+    const pts = (api.lastDrawn.find(x => x.key === s.key) || {}).pts || [];
+    const v = [...pts].reverse().find(x => x !== null && x !== undefined);
+    if (v === undefined) return null;
+    // A second-axis series is in its own units, so it needs its own formatter.
+    if (s.axis === 'y2') return opts.fmtTip2 ? opts.fmtTip2(v) : nf(v, 2);
+    return opts.fmtEnd ? opts.fmtEnd(v) : pct(v - 100, 1);
+  };
 
   function slice() {
     const d = opts.dates, n = d.length;
@@ -539,11 +607,13 @@ function lineChart(opts) {
     const N = dates.length;
     // Match the viewBox to the rendered pixel width so 1 unit == 1 px. A fixed
     // viewBox would shrink all the type in the narrow small-multiple panels.
+    const EX = !!api.exportMode;   // rendering for a PNG: bigger type, thicker marks
     const W = Math.max(320, Math.round(host.clientWidth || 1000));
     const H = opts.aspect
       ? Math.max(opts.minHeight || 320, Math.round(W / opts.aspect))
       : (opts.height || 400);
-    const M = { t: 14, r: opts.fmtAxis2 ? 66 : 62, b: 26, l: 54 };
+    const M = EX ? { t: 18, r: opts.fmtAxis2 ? 96 : 92, b: 44, l: 86 }
+                 : { t: 14, r: opts.fmtAxis2 ? 66 : 62, b: 26, l: 54 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
 
     const active = opts.series.filter(s => !state.off.has(s.key));
@@ -645,7 +715,8 @@ function lineChart(opts) {
       const col = a2[0].color;
       for (let v = Math.ceil(lo2 / step2) * step2; v <= hi2; v += step2) {
         const t2 = svgEl('text', {
-          x: M.l + pw + 9, y: Y2(v) + 4, 'text-anchor': 'start', class: 'axis-t', fill: col,
+          x: M.l + pw + (EX ? 14 : 9), y: Y2(v) + (EX ? 6 : 4), 'text-anchor': 'start',
+          class: 'axis-t', fill: col, 'font-size': EX ? 17 : 11,
         });
         t2.textContent = opts.fmtAxis2 ? opts.fmtAxis2(v, step2) : nf(v, 0);
         svg.append(t2);
@@ -657,7 +728,8 @@ function lineChart(opts) {
       if (lastTickY - y < 22) continue; // keep labels from colliding on log axes
       lastTickY = y;
       svg.append(svgEl('line', { class: 'gridline', x1: M.l, x2: M.l + pw, y1: y, y2: y }));
-      const tx = svgEl('text', { class: 'axis-t', x: M.l - 9, y: y + 4, 'text-anchor': 'end' });
+      const tx = svgEl('text', { class: 'axis-t', x: M.l - (EX ? 14 : 9), y: y + (EX ? 6 : 4),
+        'text-anchor': 'end', 'font-size': EX ? 17 : 11 });
       tx.textContent = opts.fmtAxis ? opts.fmtAxis(t, tickStep) : nf(t, 0);
       svg.append(tx);
     }
@@ -667,23 +739,32 @@ function lineChart(opts) {
         stroke: 'var(--line-3)', 'stroke-width': 1.5, 'shape-rendering': 'crispEdges',
       }));
     }
-    // x ticks at month starts, thinned to a minimum pixel spacing so narrow
-    // panels don't end up with overlapping month labels.
-    let lastMonth = '', lastX = -1e9;
-    dates.forEach((d, i) => {
-      const m = d.slice(0, 7);
-      if (m === lastMonth) return;
-      lastMonth = m;
+    // Evenly spaced date ticks across the visible window. Month-starts-only left a
+    // one-month window with two labels, which reads as a broken axis.
+    const want_x = Math.max(3, Math.min(9, Math.round(pw / (EX ? 150 : 118))));
+    const spanDays = (new Date(dates[N - 1]) - new Date(dates[0])) / 86400000;
+    const longSpan = spanDays > 400;
+    const stepI = Math.max(1, Math.floor((N - 1) / (want_x - 1)));
+    const tickIdx = [];
+    for (let i = 0; i < N; i += stepI) tickIdx.push(i);
+    if (tickIdx[tickIdx.length - 1] !== N - 1 && N > 1) {
+      // keep the last tick, but not crowded against the one before it
+      if (X(N - 1) - X(tickIdx[tickIdx.length - 1]) < 46) tickIdx.pop();
+      tickIdx.push(N - 1);
+    }
+    for (const i of tickIdx) {
       const x = X(i);
-      if (x - lastX < 52) return;
-      lastX = x;
       svg.append(svgEl('line', { class: 'gridline', x1: x, x2: x, y1: M.t, y2: M.t + ph }));
-      const tx = svgEl('text', { class: 'axis-t', x, y: H - 8, 'text-anchor': 'middle' });
-      const dd = new Date(d + 'T12:00:00Z');
-      tx.textContent = dd.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
-        + (m.endsWith('-01') || i === 0 ? ` ’${String(dd.getUTCFullYear()).slice(2)}` : '');
+      const tx = svgEl('text', {
+        class: 'axis-t', x, y: H - (EX ? 12 : 8), 'text-anchor': 'middle',
+        'font-size': EX ? 17 : 11,
+      });
+      const dd = new Date(dates[i] + 'T12:00:00Z');
+      tx.textContent = longSpan
+        ? dd.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }).replace(' ', " ’")
+        : dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
       svg.append(tx);
-    });
+    }
 
     for (const b of bands) {
       let up = '', dn = '';
@@ -709,7 +790,7 @@ function lineChart(opts) {
         p += `${open ? 'L' : 'M'}${X(i)},${YS(v)}`; open = true;
       });
       svg.append(svgEl('path', {
-        d: p, fill: 'none', stroke: s.color, 'stroke-width': s.width || 2,
+        d: p, fill: 'none', stroke: s.color, 'stroke-width': (s.width || 2) * (EX ? 1.7 : 1),
         'stroke-dasharray': s.dash || null, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
       }));
       const li = s.pts.map((v, i) => v === null ? -1 : i).filter(i => i >= 0).pop();
@@ -724,21 +805,22 @@ function lineChart(opts) {
     // Declutter the endpoint labels: nudge apart anything closer than a line-height,
     // keeping the original vertical ordering, then clamp back inside the plot.
     endLabels.sort((a, b) => a.y - b.y);
-    const GAP = 13;
+    const GAP = EX ? 20 : 13;
     for (let i = 1; i < endLabels.length; i++)
       if (endLabels[i].y - endLabels[i - 1].y < GAP) endLabels[i].y = endLabels[i - 1].y + GAP;
     const overflow = endLabels.length ? endLabels[endLabels.length - 1].y - (M.t + ph) : 0;
     if (overflow > 0) for (const l of endLabels) l.y -= overflow;
     for (const l of endLabels) {
       const t = svgEl('text', {
-        x: l.x, y: Math.max(M.t + 4, l.y) + 4, fill: l.color,
-        'font-size': 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
+        x: l.x + (EX ? 5 : 0), y: Math.max(M.t + 4, l.y) + (EX ? 6 : 4), fill: l.color,
+        'font-size': EX ? 17 : 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
         opacity: l.onY2 ? 0 : 1,   // the right-hand axis already labels that scale
       });
       t.textContent = l.text;
       svg.append(t);
     }
 
+    if (EX) { host.querySelector('svg')?.remove(); host.append(svg); return; }
     const cross = svgEl('line', {
       y1: M.t, y2: M.t + ph, stroke: 'var(--ink-3)', 'stroke-width': 1, opacity: 0,
       'shape-rendering': 'crispEdges',
@@ -856,19 +938,23 @@ const RANGE_NAME = { '1m': 'past month', '3m': 'past 3 months', '6m': 'past 6 mo
 function dlRow(chart, title, filenameSlug, sources) {
   const b = el('button', { class: 'dlbtn', type: 'button', title: 'Download this chart as a PNG' }, '⤓ PNG');
   b.addEventListener('click', () => {
-    const svg = chart.host.querySelector('svg');
-    if (!svg) return;
+    if (!chart.host.querySelector('svg')) return;
     const st = chart.state;
     const window = st.range === 'custom' ? `from ${dateLabel(st.from)}` : RANGE_NAME[st.range] || '';
     const dates = chart.lastDates || [];
-    exportPNG(svg, {
+    const span = dates.length ? `${dateLabel(dates[0])} – ${dateLabel(dates[dates.length - 1])}` : '';
+    const host = location.hostname;
+    exportPNG(chart, {
       title,
-      subtitle: `${window}${st.log ? ' · log scale' : ''}${dates.length ? ` · ${dateLabel(dates[0])} – ${dateLabel(dates[dates.length - 1])}` : ''}`,
-      legend: (chart.lastDrawn || []).map(s => ({
-        label: s.label, color: getComputedStyle(document.documentElement).getPropertyValue(s.color.replace(/var\(|\)/g, '')).trim() || s.color,
-        dash: s.dash, width: s.width,
+      subtitle: [window, st.log ? 'log scale' : 'linear scale', span].filter(Boolean).join(' · '),
+      legend: (chart.lastDrawn || []).map(x => ({
+        label: x.label,
+        color: getComputedStyle(document.documentElement).getPropertyValue(x.color.replace(/var\(|\)/g, '')).trim() || x.color,
+        dash: x.dash, width: x.width,
+        value: chart.endValue ? chart.endValue(x) : null,
       })),
       footer: sources,
+      brand: host && !/^(localhost|127\.)/.test(host) ? host + location.pathname.replace(/\/$/, '') : 'State of DFDV',
       filename: `state-of-dfdv-${filenameSlug}-${(dates[dates.length - 1] || '').replace(/-/g, '')}.png`,
     });
   });
