@@ -826,11 +826,19 @@ def build(dry: bool = False) -> dict:
     ]
     total_debt = sum((r["notional"] or 0) for r in debt)
 
-    mktcap = dfdv_now["market_cap"]
-    sol_nav_now = dfdv_now["sol_nav"]
     net_debt = nav_now.get("net_debt_amount")
     cash = nav_now.get("total_cash_including_eloc")
 
+    # Derive the headline off the same series the charts use, not DFDV's API price
+    # fields. Their `price` lagged the tape by two sessions ($5.28 against a $5.38
+    # close) and their `price_change_percent` disagreed with it, so the hero card and
+    # the return tiles told different stories about the same day.
+    last_close = closes[last_d]
+    shares_now_hd = step_lookup(shares_steps, last_d) or dfdv_now["shares_outstanding"]
+    holdings_now = step_lookup(holdings_steps, last_d) or dfdv_now["sol_count"]
+    sol_px_now = sol_on(last_d) or dfdv_now["sol_price"]
+    mktcap = last_close * shares_now_hd
+    sol_nav_now = holdings_now * sol_px_now
     avg30 = sum(v for _, v in vols[-30:]) / max(len(vols[-30:]), 1)
     avg90 = sum(v for _, v in vols[-90:]) / max(len(vols[-90:]), 1)
 
@@ -856,11 +864,11 @@ def build(dry: bool = False) -> dict:
         "slon_inception": SLON_INCEPTION,
         },
         "headline": {
-            "price": dfdv_now["price"],
-            "change_pct": dfdv_now.get("price_change_percent"),
-            "market_cap": mktcap,
-            "enterprise_value": dfdv_now.get("enterprise_value"),
-            "shares_outstanding": dfdv_now.get("shares_outstanding"),
+            "price": round(last_close, 4),
+            "change_pct": returns["1d"],
+            "market_cap": round(mktcap),
+            "enterprise_value": round(mktcap + (net_debt or 0)),
+            "shares_outstanding": shares_now_hd,
             "float_shares": float_used,
             "float_source": float_source or "shares outstanding (float unavailable)",
             "insider_pct": sa.get("sharesInsiders"),
@@ -870,10 +878,10 @@ def build(dry: bool = False) -> dict:
             "avg_volume_90d": round(avg90),
             "week52_high_low": summary.get("FiftTwoWeekHighLow"),
             "analyst_target": money(summary.get("OneYrTarget")),
-            "sol_price": dfdv_now["sol_price"],
-            "sol_count": dfdv_now["sol_count"],
-            "sol_nav": sol_nav_now,
-            "sps": round(dfdv_now["sol_count"] / dfdv_now["shares_outstanding"], 8),
+            "sol_price": round(sol_px_now, 4),
+            "sol_count": holdings_now,
+            "sol_nav": round(sol_nav_now),
+            "sps": round(holdings_now / shares_now_hd, 8),
             "nav_per_share": nav_now.get("headline_nav_per_share"),
             "net_nav_per_share": nav_now.get("adjusted_nav_per_share"),
             "mnav": nav_now.get("headline_mnav"),
@@ -948,7 +956,7 @@ def main() -> int:
     h = data["headline"]
     r = data["returns"]
     print("\n--- State of DFDV ---")
-    print(f"  price ${h['price']:.2f}  mktcap ${h['market_cap']/1e6:.1f}M  lev {h['leverage']}x  mNAV {h['mnav']:.3f}")
+    print(f"  price ${h['price']:.2f} ({h['change_pct']:+.1f}%)  mktcap ${h['market_cap']/1e6:.1f}M  lev {h['leverage']}x  mNAV {h['mnav']:.3f}")
     print(f"  SOL {h['sol_count']:,} (${h['sol_nav']/1e6:.1f}M)  SPS {h['sps']:.5f}  staking {h['staking_apy_pct']}%")
     print(f"  short {h['short']['shares']:,} = {h['short']['pct_float']}% float, {h['short']['days_to_cover']} d2c")
     print("  returns: " + "  ".join(f"{k}={v:.1f}%" for k, v in r.items() if v is not None))

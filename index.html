@@ -1014,7 +1014,9 @@ function render(D) {
 
   $('#tagline').textContent = "How DeFi Development Corp.'s (Nasdaq: DFDV) Solana treasury strategy is performing";
   // Their pill reads LIVE because that page polls; this one is a scheduled snapshot,
-  // so it names the refresh time rather than implying a live feed.
+  // so it names the refresh time rather than implying a live feed. Prefer DFDV's
+  // server-side updated_at over our own generated_at, which carries whatever clock the
+  // refresh ran on - a skewed local clock would otherwise show a wrong time here.
   const stamp = D.as_of.dfdv_api || D.generated_at;
   $('#pilltxt').textContent = 'Updated · ' + (stamp
     ? new Date(stamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
