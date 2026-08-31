@@ -524,7 +524,6 @@ function exportPNG(chart, meta) {
     stroke: 'rgba(143,165,212,.14)', 'stroke-width': 1,
   }));
   out.append(text(PAD, outH - 28, meta.footer, { size: 14, weight: 600, font: MONO, fill: ink3 }));
-  out.append(text(OUT_W - PAD, outH - 26, meta.brand, { size: 22, anchor: 'end', fill: orange }));
 
   const str = new XMLSerializer().serializeToString(out);
   const img = new Image();
@@ -943,7 +942,6 @@ function dlRow(chart, title, filenameSlug, sources) {
     const window = st.range === 'custom' ? `from ${dateLabel(st.from)}` : RANGE_NAME[st.range] || '';
     const dates = chart.lastDates || [];
     const span = dates.length ? `${dateLabel(dates[0])} – ${dateLabel(dates[dates.length - 1])}` : '';
-    const host = location.hostname;
     exportPNG(chart, {
       title,
       subtitle: [window, st.log ? 'log scale' : 'linear scale', span].filter(Boolean).join(' · '),
@@ -954,7 +952,6 @@ function dlRow(chart, title, filenameSlug, sources) {
         value: chart.endValue ? chart.endValue(x) : null,
       })),
       footer: sources,
-      brand: host && !/^(localhost|127\.)/.test(host) ? host + location.pathname.replace(/\/$/, '') : 'State of DFDV',
       filename: `state-of-dfdv-${filenameSlug}-${(dates[dates.length - 1] || '').replace(/-/g, '')}.png`,
     });
   });
