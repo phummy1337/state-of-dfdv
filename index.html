@@ -450,6 +450,13 @@ function exportPNG(chart, meta) {
     const label = it.value ? `${it.label} (${it.value})` : it.label;
     return { ...it, label, w: SW_PAD + meas.measureText(label).width };
   });
+  legItems.sort((a, b) => {
+    if (a.onY2 !== b.onY2) return a.onY2 ? 1 : -1;
+    if (a.sortKey === null) return 1;
+    if (b.sortKey === null) return -1;
+    return b.sortKey - a.sortKey;
+  });
+
   const rows = [[]];
   let rowW = 0;
   for (const it of legItems) {
@@ -460,7 +467,7 @@ function exportPNG(chart, meta) {
 
   // Methodology note, wrapped to the plot width. A downloaded chart travels alone,
   // so the caveats that sit under it on the page have to come with it.
-  const NOTE_SIZE = 16, NOTE_LH = 24;
+  const NOTE_SIZE = 14, NOTE_LH = 22, NOTE_TOP_GAP = 46;
   let noteLines = [];
   if (meta.note) {
     meas.font = `600 ${NOTE_SIZE}px "Syne", Helvetica, Arial, sans-serif`;
@@ -475,7 +482,7 @@ function exportPNG(chart, meta) {
 
   const HEAD = 168, FOOT = 96;
   const LEGEND = 40 + (rows.length - 1) * ROW_H + 22;
-  const NOTE_H = noteLines.length ? 14 + noteLines.length * NOTE_LH : 0;
+  const NOTE_H = noteLines.length ? NOTE_TOP_GAP + noteLines.length * NOTE_LH + 10 : 0;
   const outH = HEAD + plotH + LEGEND + NOTE_H + FOOT;
   const SCALE = 2;
   const out = svgEl('svg', {
@@ -542,9 +549,9 @@ function exportPNG(chart, meta) {
     }
   });
 
-  let ny = HEAD + plotH + LEGEND + 6;
+  let ny = HEAD + plotH + LEGEND + NOTE_TOP_GAP;
   for (const line of noteLines) {
-    out.append(text(PAD, ny, line, { size: NOTE_SIZE, weight: 600, fill: ink2 }));
+    out.append(text(PAD, ny, line, { size: NOTE_SIZE, weight: 600, fill: ink3 }));
     ny += NOTE_LH;
   }
 
@@ -601,6 +608,12 @@ function lineChart(opts) {
 
   const state = { range: opts.defaultRange || 'max', log: !!opts.log, off: new Set(), from: null };
   const api = { host, state, draw, lastDrawn: [], exportMode: false };
+  // Raw last value of a series, for ordering the exported legend.
+  api.endNumber = s => {
+    const pts = (api.lastDrawn.find(x => x.key === s.key) || {}).pts || [];
+    const v = [...pts].reverse().find(x => x !== null && x !== undefined);
+    return v === undefined ? null : v;
+  };
   api.endValue = s => {
     const pts = (api.lastDrawn.find(x => x.key === s.key) || {}).pts || [];
     const v = [...pts].reverse().find(x => x !== null && x !== undefined);
@@ -987,6 +1000,8 @@ function dlRow(chart, title, filenameSlug, sources, note) {
         color: getComputedStyle(document.documentElement).getPropertyValue(x.color.replace(/var\(|\)/g, '')).trim() || x.color,
         dash: x.dash, width: x.width,
         value: chart.endValue ? chart.endValue(x) : null,
+        sortKey: chart.endNumber ? chart.endNumber(x) : null,
+        onY2: x.axis === 'y2',
       })),
       footer: sources,
       note,
