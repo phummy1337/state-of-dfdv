@@ -387,7 +387,7 @@ const sectionHead = (title, asof) => el('div', { class: 'shead' }, [
    ========================================================================= */
 // Export-mode axis type. Must be an inline style, not a font-size attribute: the
 // .axis-t class rule outranks presentation attributes and would override it.
-const AXIS_EX_STYLE = 'font-size:22px;font-weight:600';
+const AXIS_EX_STYLE = 'font-size:21px;font-weight:600';  // matches LEG_SIZE
 
 const PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
   'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor'];
@@ -480,7 +480,7 @@ function exportPNG(chart, meta) {
     if (line) noteLines.push(line);
   }
 
-  const HEAD = 168, FOOT = 96;
+  const HEAD = 186, FOOT = 96;
   const LEGEND = 40 + (rows.length - 1) * ROW_H + 22;
   const NOTE_H = noteLines.length ? NOTE_TOP_GAP + noteLines.length * NOTE_LH + 10 : 0;
   const outH = HEAD + plotH + LEGEND + NOTE_H + FOOT;
@@ -514,15 +514,24 @@ function exportPNG(chart, meta) {
     return t;
   };
 
-  out.append(text(PAD, 74, meta.title, { size: 40 }));
-  if (meta.subtitle) out.append(text(PAD, 112, meta.subtitle, { size: 19, weight: 600, fill: ink2 }));
-
   // Brand lockup, top right: the mark then the company name.
   const NAME = 'DeFi Development Corp.';
   const nameSize = 27;
-  const nameW = NAME.length * nameSize * 0.545;
+  meas.font = `700 ${nameSize}px "Syne", Helvetica, Arial, sans-serif`;
+  const nameW = meas.measureText(NAME).width;
   const markH = 30, markW = markH * (548 / 200);
-  const g = svgEl('g', { transform: `translate(${OUT_W - PAD - nameW - markW - 18}, 44)` });
+
+  // Fit the title in the space the lockup leaves. It is set as large as will fit
+  // rather than at a fixed size, so a long title cannot run into the brand.
+  const titleRoom = OUT_W - PAD * 2 - (markW + 18 + nameW) - 48;
+  let titleSize = 54;
+  for (; titleSize > 32; titleSize -= 2) {
+    meas.font = `700 ${titleSize}px "Syne", Helvetica, Arial, sans-serif`;
+    if (meas.measureText(meta.title).width <= titleRoom) break;
+  }
+  out.append(text(PAD, 84, meta.title, { size: titleSize }));
+  if (meta.subtitle) out.append(text(PAD, 124, meta.subtitle, { size: 20, weight: 600, fill: ink2 }));
+  const g = svgEl('g', { transform: `translate(${OUT_W - PAD - nameW - markW - 18}, 48)` });
   const ms = svgEl('svg', { width: markW, height: markH, viewBox: '0 0 548 200' });
   ms.append(svgEl('path', { fill: 'url(#exmark)', d: 'M410.25,110.94V.54H137.47v110.4C86.5,129.98,39.74,159.82,0,199.3h44.22c28.31-23.66,59.71-42.58,93.25-56.35v56.21h29.82v-66.91c34.06-10.55,69.89-16.01,106.57-16.01s72.51,5.47,106.57,16.02v66.9h29.82v-56.19c33.52,13.77,64.93,32.67,93.23,56.33h44.22c-39.74-39.48-86.49-69.32-137.45-88.36ZM380.43,101.14c-34.22-9.71-70.01-14.71-106.57-14.71s-72.35,5-106.57,14.71V30.34h213.14v70.8Z' }));
   g.append(ms);
@@ -862,7 +871,7 @@ function lineChart(opts) {
     for (const l of endLabels) {
       const t = svgEl('text', {
         x: l.x + (EX ? 5 : 0), y: Math.max(M.t + 4, l.y) + (EX ? 6 : 4), fill: l.color,
-        'font-size': EX ? 22 : 16, 'font-family': 'var(--mono)', 'font-weight': 700,
+        'font-size': EX ? 21 : 16, 'font-family': 'var(--mono)', 'font-weight': 700,
         opacity: l.onY2 ? 0 : 1,   // the right-hand axis already labels that scale
       });
       t.textContent = l.text;
@@ -1156,7 +1165,7 @@ function render(D) {
       el('div', { class: 'panel', style: 'margin-top:14px' }, [
         el('div', { class: 'panel-hd' }, [
           el('div', {}, [
-            el('h3', {}, 'DFDV vs. the other ways to own SOL'),
+            el('h3', {}, 'DFDV vs. the Other Ways to Own SOL'),
             el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
           ]),
           el('div', { class: 'ctrls' }, [
@@ -1166,7 +1175,7 @@ function render(D) {
         ]),
         legendFor(c1, SERIES),
         c1.host,
-        dlRow(c1, 'DFDV vs. the other ways to own SOL', 'performance', SRC_LINE, PERF_NOTE),
+        dlRow(c1, 'DFDV vs. the Other Ways to Own SOL', 'performance', SRC_LINE, PERF_NOTE),
         el('div', { class: 'note', style: 'margin:12px 0 0' }, PERF_NOTE),
       ]),
     ]),
@@ -1200,7 +1209,7 @@ function render(D) {
     el('div', { class: 'panel' }, [
       el('div', { class: 'panel-hd' }, [
         el('div', {}, [
-          el('h3', {}, 'DFDV against its leverage-implied range'),
+          el('h3', {}, 'DFDV Against Its Leverage-Implied Range'),
           el('div', { class: 'sub' }, 'Rebased to 0% at the start of the selected window'),
         ]),
         el('div', { class: 'ctrls' }, [
@@ -1227,7 +1236,7 @@ function render(D) {
         ]),
       ]),
       c2.host,
-      dlRow(c2, 'DFDV against its leverage-implied range', 'leverage-band', SRC_LINE),
+      dlRow(c2, 'DFDV Against Its Leverage-Implied Range', 'leverage-band', SRC_LINE),
       el('div', { class: 'gauge' }, [
         el('div', { class: 'bar' }, [el('div', { class: 'mk', style: `left:calc(${posPct}% - 1.5px)` })]),
         el('div', { class: 'ends' }, [
@@ -1304,7 +1313,7 @@ function render(D) {
           { key: 'lev', label: 'SOL exposure', color: 'var(--s-dfdv)', width: 2 },
           { key: 'px', label: 'DFDV price (right)', color: 'var(--ink-3)', width: 1.25, dash: '4 3' },
         ]),
-        c3.host, dlRow(c3, 'DFDV levered SOL exposure', 'leverage', SRC_LINE),
+        c3.host, dlRow(c3, 'DFDV Levered SOL Exposure', 'leverage', SRC_LINE),
       ]),
       el('div', { class: 'panel' }, [
         el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Short Interest'), el('div', { class: 'sub' }, '% of float, at settlement')])]),
@@ -1312,7 +1321,7 @@ function render(D) {
           { key: 'pf', label: '% of float', color: 'var(--s-perp)', width: 2 },
           { key: 'px', label: 'DFDV price (right)', color: 'var(--ink-3)', width: 1.25, dash: '4 3' },
         ]),
-        c4.host, dlRow(c4, 'DFDV short interest, % of float', 'short-interest', SRC_LINE),
+        c4.host, dlRow(c4, 'DFDV Short Interest, % of Float', 'short-interest', SRC_LINE),
       ]),
       el('div', { class: 'panel' }, [
         el('div', { class: 'panel-hd' }, [el('div', {}, [el('h3', {}, 'Days to Cover'), el('div', { class: 'sub' }, 'short interest ÷ average daily volume')])]),
@@ -1320,7 +1329,7 @@ function render(D) {
           { key: 'd2c', label: 'Days to cover', color: 'var(--s-sol)', width: 2 },
           { key: 'px', label: 'DFDV price (right)', color: 'var(--ink-3)', width: 1.25, dash: '4 3' },
         ]),
-        c5.host, dlRow(c5, 'DFDV days to cover', 'days-to-cover', SRC_LINE),
+        c5.host, dlRow(c5, 'DFDV Days to Cover', 'days-to-cover', SRC_LINE),
       ]),
     ]),
   ]));
