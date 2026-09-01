@@ -384,6 +384,10 @@ const sectionHead = (title, asof) => el('div', { class: 'shead' }, [
    ground. CSS classes and custom properties do not survive serialisation, so
    every paint is copied off getComputedStyle onto the clone first.
    ========================================================================= */
+// Export-mode axis type. Must be an inline style, not a font-size attribute: the
+// .axis-t class rule outranks presentation attributes and would override it.
+const AXIS_EX_STYLE = 'font-size:30px;font-weight:600';
+
 const PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
   'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor'];
 
@@ -719,7 +723,7 @@ function lineChart(opts) {
       for (let v = Math.ceil(lo2 / step2) * step2; v <= hi2; v += step2) {
         const t2 = svgEl('text', {
           x: M.l + pw + (EX ? 22 : 13), y: Y2(v) + (EX ? 10 : 6), 'text-anchor': 'start',
-          class: 'axis-t', fill: col, 'font-size': EX ? 30 : 18, 'font-weight': EX ? 600 : null,
+          class: 'axis-t', fill: col, style: EX ? AXIS_EX_STYLE : null,
         });
         t2.textContent = opts.fmtAxis2 ? opts.fmtAxis2(v, step2) : nf(v, 0);
         svg.append(t2);
@@ -735,7 +739,7 @@ function lineChart(opts) {
         'stroke-width': EX ? 1.6 : 1, opacity: EX ? 1.5 : 1,
       }));
       const tx = svgEl('text', { class: 'axis-t', x: M.l - (EX ? 22 : 13), y: y + (EX ? 10 : 6),
-        'text-anchor': 'end', 'font-size': EX ? 30 : 18, 'font-weight': EX ? 600 : null });
+        'text-anchor': 'end', style: EX ? AXIS_EX_STYLE : null });
       tx.textContent = opts.fmtAxis ? opts.fmtAxis(t, tickStep) : nf(t, 0);
       svg.append(tx);
     }
@@ -766,7 +770,7 @@ function lineChart(opts) {
       }));
       const tx = svgEl('text', {
         class: 'axis-t', x, y: H - (EX ? 20 : 12), 'text-anchor': 'middle',
-        'font-size': EX ? 30 : 18, 'font-weight': EX ? 600 : null,
+        style: EX ? AXIS_EX_STYLE : null,
       });
       const dd = new Date(dates[i] + 'T12:00:00Z');
       tx.textContent = longSpan
