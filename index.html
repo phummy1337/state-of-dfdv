@@ -456,7 +456,10 @@ function exportPNG(chart, meta) {
   const HEAD = 168, FOOT = 96;
   const LEGEND = 40 + (rows.length - 1) * ROW_H + 22;
   const outH = HEAD + plotH + LEGEND + FOOT;
-  const out = svgEl('svg', { xmlns: NS, width: OUT_W, height: outH, viewBox: `0 0 ${OUT_W} ${outH}` });
+  const SCALE = 2;
+  const out = svgEl('svg', {
+    xmlns: NS, width: OUT_W * SCALE, height: outH * SCALE, viewBox: `0 0 ${OUT_W} ${outH}`,
+  });
   const SANS = '"Syne",Helvetica,Arial,sans-serif';
   const MONO = 'ui-monospace,Menlo,Consolas,monospace';
   const ink = cssVar('--ink'), ink2 = cssVar('--ink-2'), ink3 = cssVar('--ink-3'), orange = cssVar('--orange');
@@ -528,12 +531,13 @@ function exportPNG(chart, meta) {
   const str = new XMLSerializer().serializeToString(out);
   const img = new Image();
   img.onload = () => {
-    const scale = 2;
     const c = document.createElement('canvas');
-    c.width = OUT_W * scale; c.height = outH * scale;
+    c.width = OUT_W * SCALE; c.height = outH * SCALE;
     const ctx = c.getContext('2d');
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    // 1:1 - the SVG already carries the full output resolution, so this rasterises
+    // the vector at device pixels instead of resampling a smaller bitmap.
+    ctx.drawImage(img, 0, 0, OUT_W * SCALE, outH * SCALE);
     c.toBlob(async b2 => {
       if (!b2) return;
       const dl = await hostDownloads();
@@ -611,7 +615,7 @@ function lineChart(opts) {
     const H = opts.aspect
       ? Math.max(opts.minHeight || 320, Math.round(W / opts.aspect))
       : (opts.height || 400);
-    const M = EX ? { t: 18, r: opts.fmtAxis2 ? 96 : 92, b: 44, l: 86 }
+    const M = EX ? { t: 18, r: opts.fmtAxis2 ? 104 : 100, b: 52, l: 96 }
                  : { t: 14, r: opts.fmtAxis2 ? 66 : 62, b: 26, l: 54 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
 
@@ -715,7 +719,7 @@ function lineChart(opts) {
       for (let v = Math.ceil(lo2 / step2) * step2; v <= hi2; v += step2) {
         const t2 = svgEl('text', {
           x: M.l + pw + (EX ? 14 : 9), y: Y2(v) + (EX ? 6 : 4), 'text-anchor': 'start',
-          class: 'axis-t', fill: col, 'font-size': EX ? 17 : 11,
+          class: 'axis-t', fill: col, 'font-size': EX ? 20 : 11, 'font-weight': EX ? 600 : null,
         });
         t2.textContent = opts.fmtAxis2 ? opts.fmtAxis2(v, step2) : nf(v, 0);
         svg.append(t2);
@@ -726,9 +730,12 @@ function lineChart(opts) {
       const y = Y(t);
       if (lastTickY - y < 22) continue; // keep labels from colliding on log axes
       lastTickY = y;
-      svg.append(svgEl('line', { class: 'gridline', x1: M.l, x2: M.l + pw, y1: y, y2: y }));
-      const tx = svgEl('text', { class: 'axis-t', x: M.l - (EX ? 14 : 9), y: y + (EX ? 6 : 4),
-        'text-anchor': 'end', 'font-size': EX ? 17 : 11 });
+      svg.append(svgEl('line', {
+        class: 'gridline', x1: M.l, x2: M.l + pw, y1: y, y2: y,
+        'stroke-width': EX ? 1.6 : 1, opacity: EX ? 1.5 : 1,
+      }));
+      const tx = svgEl('text', { class: 'axis-t', x: M.l - (EX ? 16 : 9), y: y + (EX ? 7 : 4),
+        'text-anchor': 'end', 'font-size': EX ? 20 : 11, 'font-weight': EX ? 600 : null });
       tx.textContent = opts.fmtAxis ? opts.fmtAxis(t, tickStep) : nf(t, 0);
       svg.append(tx);
     }
@@ -753,10 +760,13 @@ function lineChart(opts) {
     }
     for (const i of tickIdx) {
       const x = X(i);
-      svg.append(svgEl('line', { class: 'gridline', x1: x, x2: x, y1: M.t, y2: M.t + ph }));
+      svg.append(svgEl('line', {
+        class: 'gridline', x1: x, x2: x, y1: M.t, y2: M.t + ph,
+        'stroke-width': EX ? 1.6 : 1, opacity: EX ? 1.5 : 1,
+      }));
       const tx = svgEl('text', {
-        class: 'axis-t', x, y: H - (EX ? 12 : 8), 'text-anchor': 'middle',
-        'font-size': EX ? 17 : 11,
+        class: 'axis-t', x, y: H - (EX ? 14 : 8), 'text-anchor': 'middle',
+        'font-size': EX ? 20 : 11, 'font-weight': EX ? 600 : null,
       });
       const dd = new Date(dates[i] + 'T12:00:00Z');
       tx.textContent = longSpan
@@ -812,7 +822,7 @@ function lineChart(opts) {
     for (const l of endLabels) {
       const t = svgEl('text', {
         x: l.x + (EX ? 5 : 0), y: Math.max(M.t + 4, l.y) + (EX ? 6 : 4), fill: l.color,
-        'font-size': EX ? 17 : 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
+        'font-size': EX ? 19 : 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
         opacity: l.onY2 ? 0 : 1,   // the right-hand axis already labels that scale
       });
       t.textContent = l.text;
