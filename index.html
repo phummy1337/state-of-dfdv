@@ -184,7 +184,7 @@ button.seg[aria-pressed=true]{background:var(--orange);color:#170a01}
 .plot{position:relative;width:100%}
 .plot svg{display:block;width:100%;height:auto;overflow:visible}
 .gridline{stroke:var(--line-2);stroke-width:1;shape-rendering:crispEdges}
-.axis-t{fill:var(--ink-3);font-size:11px;font-family:var(--mono)}
+.axis-t{fill:var(--ink-3);font-size:13px;font-family:var(--mono)}
 .dlrow{display:flex;justify-content:flex-end;margin-top:6px}
 button.dlbtn{background:var(--panel);border:1px solid var(--line-3);border-radius:9px;
   color:var(--ink-2);font-family:var(--syne);font-size:10.5px;font-weight:700;
@@ -615,8 +615,8 @@ function lineChart(opts) {
     const H = opts.aspect
       ? Math.max(opts.minHeight || 320, Math.round(W / opts.aspect))
       : (opts.height || 400);
-    const M = EX ? { t: 18, r: opts.fmtAxis2 ? 104 : 100, b: 52, l: 96 }
-                 : { t: 14, r: opts.fmtAxis2 ? 66 : 62, b: 26, l: 54 };
+    const M = EX ? { t: 20, r: opts.fmtAxis2 ? 122 : 116, b: 62, l: 112 }
+                 : { t: 14, r: opts.fmtAxis2 ? 76 : 70, b: 32, l: 64 };
     const pw = W - M.l - M.r, ph = H - M.t - M.b;
 
     const active = opts.series.filter(s => !state.off.has(s.key));
@@ -718,8 +718,8 @@ function lineChart(opts) {
       const col = a2[0].color;
       for (let v = Math.ceil(lo2 / step2) * step2; v <= hi2; v += step2) {
         const t2 = svgEl('text', {
-          x: M.l + pw + (EX ? 14 : 9), y: Y2(v) + (EX ? 6 : 4), 'text-anchor': 'start',
-          class: 'axis-t', fill: col, 'font-size': EX ? 20 : 11, 'font-weight': EX ? 600 : null,
+          x: M.l + pw + (EX ? 18 : 11), y: Y2(v) + (EX ? 8 : 5), 'text-anchor': 'start',
+          class: 'axis-t', fill: col, 'font-size': EX ? 24 : 13, 'font-weight': EX ? 600 : null,
         });
         t2.textContent = opts.fmtAxis2 ? opts.fmtAxis2(v, step2) : nf(v, 0);
         svg.append(t2);
@@ -728,14 +728,14 @@ function lineChart(opts) {
     let lastTickY = Infinity;
     for (const t of ticks) {
       const y = Y(t);
-      if (lastTickY - y < 22) continue; // keep labels from colliding on log axes
+      if (lastTickY - y < (EX ? 38 : 28)) continue; // keep labels from colliding on log axes
       lastTickY = y;
       svg.append(svgEl('line', {
         class: 'gridline', x1: M.l, x2: M.l + pw, y1: y, y2: y,
         'stroke-width': EX ? 1.6 : 1, opacity: EX ? 1.5 : 1,
       }));
-      const tx = svgEl('text', { class: 'axis-t', x: M.l - (EX ? 16 : 9), y: y + (EX ? 7 : 4),
-        'text-anchor': 'end', 'font-size': EX ? 20 : 11, 'font-weight': EX ? 600 : null });
+      const tx = svgEl('text', { class: 'axis-t', x: M.l - (EX ? 18 : 11), y: y + (EX ? 8 : 5),
+        'text-anchor': 'end', 'font-size': EX ? 24 : 13, 'font-weight': EX ? 600 : null });
       tx.textContent = opts.fmtAxis ? opts.fmtAxis(t, tickStep) : nf(t, 0);
       svg.append(tx);
     }
@@ -747,7 +747,7 @@ function lineChart(opts) {
     }
     // Evenly spaced date ticks across the visible window. Month-starts-only left a
     // one-month window with two labels, which reads as a broken axis.
-    const want_x = Math.max(3, Math.min(9, Math.round(pw / (EX ? 150 : 118))));
+    const want_x = Math.max(3, Math.min(9, Math.round(pw / (EX ? 190 : 145))));
     const spanDays = (new Date(dates[N - 1]) - new Date(dates[0])) / 86400000;
     const longSpan = spanDays > 400;
     const stepI = Math.max(1, Math.floor((N - 1) / (want_x - 1)));
@@ -755,7 +755,7 @@ function lineChart(opts) {
     for (let i = 0; i < N; i += stepI) tickIdx.push(i);
     if (tickIdx[tickIdx.length - 1] !== N - 1 && N > 1) {
       // keep the last tick, but not crowded against the one before it
-      if (X(N - 1) - X(tickIdx[tickIdx.length - 1]) < 46) tickIdx.pop();
+      if (X(N - 1) - X(tickIdx[tickIdx.length - 1]) < (EX ? 74 : 58)) tickIdx.pop();
       tickIdx.push(N - 1);
     }
     for (const i of tickIdx) {
@@ -765,8 +765,8 @@ function lineChart(opts) {
         'stroke-width': EX ? 1.6 : 1, opacity: EX ? 1.5 : 1,
       }));
       const tx = svgEl('text', {
-        class: 'axis-t', x, y: H - (EX ? 14 : 8), 'text-anchor': 'middle',
-        'font-size': EX ? 20 : 11, 'font-weight': EX ? 600 : null,
+        class: 'axis-t', x, y: H - (EX ? 16 : 9), 'text-anchor': 'middle',
+        'font-size': EX ? 24 : 13, 'font-weight': EX ? 600 : null,
       });
       const dd = new Date(dates[i] + 'T12:00:00Z');
       tx.textContent = longSpan
@@ -814,7 +814,7 @@ function lineChart(opts) {
     // Declutter the endpoint labels: nudge apart anything closer than a line-height,
     // keeping the original vertical ordering, then clamp back inside the plot.
     endLabels.sort((a, b) => a.y - b.y);
-    const GAP = EX ? 20 : 13;
+    const GAP = EX ? 24 : 15;
     for (let i = 1; i < endLabels.length; i++)
       if (endLabels[i].y - endLabels[i - 1].y < GAP) endLabels[i].y = endLabels[i - 1].y + GAP;
     const overflow = endLabels.length ? endLabels[endLabels.length - 1].y - (M.t + ph) : 0;
@@ -822,7 +822,7 @@ function lineChart(opts) {
     for (const l of endLabels) {
       const t = svgEl('text', {
         x: l.x + (EX ? 5 : 0), y: Math.max(M.t + 4, l.y) + (EX ? 6 : 4), fill: l.color,
-        'font-size': EX ? 19 : 11.5, 'font-family': 'var(--mono)', 'font-weight': 700,
+        'font-size': EX ? 22 : 13, 'font-family': 'var(--mono)', 'font-weight': 700,
         opacity: l.onY2 ? 0 : 1,   // the right-hand axis already labels that scale
       });
       t.textContent = l.text;
