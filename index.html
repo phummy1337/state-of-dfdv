@@ -324,6 +324,24 @@ footer{border-top:1px solid var(--line);margin-top:46px;padding-top:22px;
    the charts are hand-rolled SVG so the page stays self-contained.
    ========================================================================= */
 
+// Pages caches index.html for ten minutes, so an open tab can keep running code
+// that has already been replaced - and silently export charts from the old build.
+// version.json is written alongside each deploy; if it disagrees with the id baked
+// in here, reload once against a cache-busting URL.
+const BUILD = '745eda07167d';
+(async () => {
+  try {
+    const r = await fetch('version.json', { cache: 'no-store' });
+    if (!r.ok) return;
+    const { build } = await r.json();
+    if (!build || build === BUILD) return;
+    const key = 'sod-reloaded-' + build;
+    if (sessionStorage.getItem(key)) return;   // never loop
+    sessionStorage.setItem(key, '1');
+    location.replace(location.pathname + '?v=' + build);
+  } catch { /* offline, or no version.json: keep whatever is loaded */ }
+})();
+
 const $ = (s, r = document) => r.querySelector(s);
 const el = (tag, attrs = {}, kids = []) => {
   const n = document.createElement(tag);
