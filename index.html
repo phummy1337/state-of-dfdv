@@ -143,6 +143,7 @@ section{margin:46px 0 0}
 .shead .asof{font-family:var(--syne);font-size:12px;font-weight:600;color:var(--ink-3);
   font-style:italic;white-space:nowrap}
 .note{color:var(--ink-2);font-size:13px;margin:14px 0 16px;max-width:82ch}
+.panel .note{max-width:none}
 
 /* tiles ------------------------------------------------------------------- */
 .tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(186px,1fr))}
@@ -457,9 +458,25 @@ function exportPNG(chart, meta) {
     rowW += it.w + LEG_GAP;
   }
 
+  // Methodology note, wrapped to the plot width. A downloaded chart travels alone,
+  // so the caveats that sit under it on the page have to come with it.
+  const NOTE_SIZE = 16, NOTE_LH = 24;
+  let noteLines = [];
+  if (meta.note) {
+    meas.font = `600 ${NOTE_SIZE}px "Syne", Helvetica, Arial, sans-serif`;
+    let line = '';
+    for (const word of meta.note.split(' ')) {
+      const next = line ? line + ' ' + word : word;
+      if (meas.measureText(next).width > plotW && line) { noteLines.push(line); line = word; }
+      else line = next;
+    }
+    if (line) noteLines.push(line);
+  }
+
   const HEAD = 168, FOOT = 96;
   const LEGEND = 40 + (rows.length - 1) * ROW_H + 22;
-  const outH = HEAD + plotH + LEGEND + FOOT;
+  const NOTE_H = noteLines.length ? 14 + noteLines.length * NOTE_LH : 0;
+  const outH = HEAD + plotH + LEGEND + NOTE_H + FOOT;
   const SCALE = 2;
   const out = svgEl('svg', {
     xmlns: NS, width: OUT_W * SCALE, height: outH * SCALE, viewBox: `0 0 ${OUT_W} ${outH}`,
@@ -524,6 +541,12 @@ function exportPNG(chart, meta) {
       lx += it.w + LEG_GAP;
     }
   });
+
+  let ny = HEAD + plotH + LEGEND + 6;
+  for (const line of noteLines) {
+    out.append(text(PAD, ny, line, { size: NOTE_SIZE, weight: 600, fill: ink2 }));
+    ny += NOTE_LH;
+  }
 
   // Footer
   out.append(svgEl('line', {
@@ -948,7 +971,7 @@ const RANGE_NAME = { '1m': 'past month', '3m': 'past 3 months', '6m': 'past 6 mo
   ytd: 'year to date', '1y': 'past year', max: 'since the first SOL purchase' };
 
 /* One "⤓ PNG" control per chart, matching the pattern on stateofsol.com. */
-function dlRow(chart, title, filenameSlug, sources) {
+function dlRow(chart, title, filenameSlug, sources, note) {
   const b = el('button', { class: 'dlbtn', type: 'button', title: 'Download this chart as a PNG' }, '⤓ PNG');
   b.addEventListener('click', () => {
     if (!chart.host.querySelector('svg')) return;
@@ -966,6 +989,7 @@ function dlRow(chart, title, filenameSlug, sources) {
         value: chart.endValue ? chart.endValue(x) : null,
       })),
       footer: sources,
+      note,
       filename: `state-of-dfdv-${filenameSlug}-${(dates[dates.length - 1] || '').replace(/-/g, '')}.png`,
     });
   });
@@ -1072,6 +1096,16 @@ function render(D) {
     { key: 'slon', label: `SLON 2× levered ETF`, color: 'var(--s-sol)', dash: '7 3', width: 1.75, values: S.slon, rebaseWith: 'sol' },
     { key: 'perp', label: 'SOL perp 1× (net funding)', color: 'var(--s-perp)', values: S.perp },
   ];
+  const PERF_NOTE =
+    `The synthetic SOL ETF earns the dfdvSOL-implied staking yield (${nf(M.staking_apy_pct, 2)}%) less a ` +
+    `${nf(M.etf_mgmt_fee_pct, 2)}% sponsor fee and a ${nf(M.etf_staking_fee_pct, 0)}% cut of rewards — BSOL's ` +
+    `schedule — and runs the whole window because no spot SOL ETF existed before ` +
+    `${dateLabel(M.bsol_inception)}; actual BSOL is spliced in dashed from launch. The perp is a 1× long ` +
+    `paying realised Hyperliquid funding, less ${nf(M.perp_taker_fee_bps, 1)}bp at entry. BSOL and SLON are ` +
+    `traded prices, already net of their fees — SLON's ${nf(M.slon_expense_ratio_pct, 2)}% expense ratio is ` +
+    `inside its line, not subtracted again. SOL is priced at the 4pm ET close so every series is on the ` +
+    `same clock.`;
+
   const c1 = lineChart({
     dates: S.dates, series: SERIES, log: true, aspect: 2, minHeight: 340, defaultRange: '1m',
     aria: 'DFDV total return versus SOL spot, a synthetic SOL ETF, actual BSOL, and a 1x SOL perpetual',
@@ -1117,16 +1151,8 @@ function render(D) {
         ]),
         legendFor(c1, SERIES),
         c1.host,
-        dlRow(c1, 'DFDV vs. the other ways to own SOL', 'performance', SRC_LINE),
-        el('div', { class: 'note', style: 'margin:12px 0 0' },
-          `Each line is a different wrapper on the same asset. The synthetic SOL ETF earns the dfdvSOL-implied ` +
-          `staking yield (${nf(M.staking_apy_pct, 2)}%) less a ${nf(M.etf_mgmt_fee_pct, 2)}% sponsor fee and a ` +
-          `${nf(M.etf_staking_fee_pct, 0)}% cut of rewards — BSOL's schedule — and runs the whole window because no ` +
-          `spot SOL ETF existed before ${dateLabel(M.bsol_inception)}; actual BSOL is spliced in dashed from launch. ` +
-          `The perp is a 1× long paying realised Hyperliquid funding, less ${nf(M.perp_taker_fee_bps, 1)}bp at entry. ` +
-          `BSOL and SLON are traded prices, already net of their fees — SLON's ${nf(M.slon_expense_ratio_pct, 2)}% ` +
-          `expense ratio is inside its line, not subtracted again. SOL is priced at the 4pm ET close so every ` +
-          `series is on the same clock.`),
+        dlRow(c1, 'DFDV vs. the other ways to own SOL', 'performance', SRC_LINE, PERF_NOTE),
+        el('div', { class: 'note', style: 'margin:12px 0 0' }, PERF_NOTE),
       ]),
     ]),
   ]));
